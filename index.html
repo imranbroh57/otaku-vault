@@ -98,6 +98,7 @@
       --text-muted: #a5a29b;
       --border: #302d25;
       --border-subtle: rgba(255, 255, 255, 0.08);
+      --heart: #ef4444;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; }
     body { background-color: var(--bg); color: var(--text); min-height: 100vh; padding-bottom: 85px; overflow-x: hidden; }
@@ -157,7 +158,7 @@
       display: flex; justify-content: space-between; align-items: center;
     }
     .chips-row {
-      display: flex; gap: 8px; overflow-x: auto; padding-bottom: 14px; scrollbar-width: none;
+      display: flex; gap: 8px; overflow-x: auto; padding-bottom: 12px; scrollbar-width: none;
     }
     .chips-row::-webkit-scrollbar { display: none; }
     .chip {
@@ -167,6 +168,31 @@
     }
     .chip.active { background: var(--accent); color: #0c0b0a; border-color: var(--accent); }
     .chip.special { border-color: rgba(245, 197, 24, 0.4); color: #fff; }
+
+    /* Schedule Bar Styles */
+    .schedule-bar {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 10px 12px;
+      margin-bottom: 16px;
+    }
+    .sched-head {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 0.72rem; font-weight: 800; color: var(--accent); letter-spacing: 1px; margin-bottom: 8px;
+    }
+    .sched-days-wrap {
+      display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none;
+    }
+    .sched-days-wrap::-webkit-scrollbar { display: none; }
+    .day-pill {
+      flex: 1; min-width: 46px; text-align: center; padding: 6px 4px;
+      background: var(--card); border: 1px solid var(--border-subtle);
+      border-radius: 10px; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); cursor: pointer;
+    }
+    .day-pill.active {
+      background: var(--accent); color: #000; border-color: var(--accent);
+    }
 
     .hero-banner {
       position: relative;
@@ -216,7 +242,8 @@
       position: relative;
     }
     .media-thumb { width: 100%; height: 200px; object-fit: cover; background: #201e1a; }
-    .card-actions-float { position: absolute; top: 8px; right: 8px; z-index: 2; }
+    
+    .card-actions-float { position: absolute; top: 8px; right: 8px; z-index: 2; display: flex; flex-direction: column; gap: 6px; }
     .icon-circle-btn {
       width: 32px; height: 32px; border-radius: 50%;
       background: rgba(12, 11, 10, 0.78); backdrop-filter: blur(8px);
@@ -237,6 +264,7 @@
     .genre-tag-inline { font-size: 0.65rem; color: var(--accent); margin-bottom: 6px; }
     .media-subinfo { font-size: 0.72rem; color: var(--text-muted); display: flex; justify-content: space-between; }
 
+    /* Modal Overlay & Details */
     .modal-overlay {
       position: fixed; inset: 0; z-index: 300;
       background: #0c0b0a;
@@ -258,6 +286,8 @@
       display: flex; align-items: center; justify-content: center; cursor: pointer;
     }
     .modal-circle-btn svg { width: 20px; height: 20px; stroke: #fff; }
+    .modal-circle-btn.fav-active svg { stroke: var(--heart); fill: var(--heart); }
+
     .modal-body { padding: 0 20px 40px; margin-top: -20px; position: relative; z-index: 5; }
     .modal-title { font-size: 1.5rem; font-weight: 800; margin-bottom: 4px; }
     .modal-tags { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 14px; }
@@ -274,9 +304,9 @@
     .action-tile.active svg { stroke: var(--accent); fill: var(--accent); }
     .action-tile.active p { color: var(--accent); }
 
-    .ep-tracker-box {
+    .box-block {
       background: var(--surface); border: 1px solid var(--border);
-      border-radius: 16px; padding: 16px; margin-bottom: 22px;
+      border-radius: 16px; padding: 16px; margin-bottom: 18px;
     }
     .ep-counter-badge {
       font-size: 0.85rem; font-weight: 800; color: var(--accent);
@@ -286,6 +316,45 @@
     .ep-tracker-btn {
       background: var(--card); border: 1px solid var(--border); color: #fff;
       font-weight: 700; padding: 8px 14px; border-radius: 10px; flex: 1; cursor: pointer;
+    }
+
+    /* Score Interactive Bar */
+    .score-control-wrap {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    }
+    .score-display-btn {
+      flex: 1; background: var(--card); border: 1px solid var(--border);
+      padding: 8px 12px; border-radius: 10px; text-align: center;
+      font-size: 0.95rem; font-weight: 800; color: var(--accent); cursor: pointer;
+    }
+    .score-btn {
+      background: var(--surface); border: 1px solid var(--border);
+      color: #fff; font-weight: 800; width: 38px; height: 38px; border-radius: 10px; cursor: pointer;
+    }
+
+    /* Profile Favorites Showcase */
+    .fav-showcase-box {
+      margin-bottom: 24px;
+    }
+    .fav-row {
+      display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: none;
+    }
+    .fav-row::-webkit-scrollbar { display: none; }
+    .fav-card {
+      flex: 0 0 120px;
+      position: relative; border-radius: 12px; overflow: hidden;
+      border: 1px solid rgba(239, 68, 68, 0.35); cursor: pointer;
+    }
+    .fav-card img { width: 100%; height: 160px; object-fit: cover; }
+    .fav-badge {
+      position: absolute; top: 6px; right: 6px; background: rgba(0,0,0,0.7);
+      border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
+    }
+    .fav-card-title {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      background: linear-gradient(180deg, transparent, rgba(0,0,0,0.95));
+      padding: 8px 6px 4px; font-size: 0.72rem; font-weight: 700; color: #fff;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
 
     .bottom-nav {
@@ -359,6 +428,17 @@
       <div class="suggestions-dropdown" id="search-suggestions"></div>
     </div>
 
+    <!-- Feature 1: Weekly Airing Schedule Section -->
+    <div class="schedule-bar">
+      <div class="sched-head">
+        <span>🗓️ WEEKLY AIRING SCHEDULE</span>
+        <span id="sched-active-day-label">TODAY</span>
+      </div>
+      <div class="sched-days-wrap" id="schedule-days-container">
+        <!-- Injected via JS -->
+      </div>
+    </div>
+
     <div class="chips-label">
       <span>EXPLORE & FILTERS</span>
     </div>
@@ -374,7 +454,6 @@
       <button class="chip" onclick="applyCustomFilter('Romance', this)">Romance</button>
       <button class="chip" onclick="applyCustomFilter('Sci-Fi', this)">Sci-Fi</button>
       <button class="chip" onclick="applyCustomFilter('Supernatural', this)">Supernatural</button>
-      <button class="chip" onclick="applyCustomFilter('Mystery', this)">Mystery</button>
     </div>
 
     <div class="hero-banner">
@@ -385,7 +464,7 @@
       <div class="hero-content">
         <div class="hero-tag">DISCOVER DAILY</div>
         <div class="hero-title" id="greeting-txt">Welcome Explorer 👋</div>
-        <div class="hero-sub">Explore by genre, this season & track your anime progress</div>
+        <div class="hero-sub">Explore by genre, air schedule & track your anime progress</div>
       </div>
     </div>
 
@@ -398,7 +477,14 @@
 
     <div id="default-sections">
       <div class="section-head">
-        <div class="section-title">Airing Now</div>
+        <div class="section-title">Airing Today / Schedule</div>
+      </div>
+      <div class="carousel-row" id="schedule-row">
+        <div style="color:var(--text-muted); padding:20px;">Loading Schedule Anime...</div>
+      </div>
+
+      <div class="section-head" style="margin-top:20px;">
+        <div class="section-title">Trending & Airing Now</div>
       </div>
       <div class="carousel-row" id="airing-row">
         <div style="color:var(--text-muted); padding:20px;">Loading Airing Anime...</div>
@@ -448,6 +534,14 @@
       </div>
     </div>
 
+    <!-- Feature 5: All-Time Favorites Showcase in Profile -->
+    <div class="fav-showcase-box" id="fav-showcase-wrap" style="display:none;">
+      <div class="section-head" style="margin-top:0;">
+        <div class="section-title">❤️ All-Time Favorites</div>
+      </div>
+      <div class="fav-row" id="fav-showcase-row"></div>
+    </div>
+
     <div style="display:flex; flex-direction:column; gap:10px;">
       <div id="google-auth-box">
         <button class="google-btn" onclick="handleGoogleSignIn()">
@@ -478,6 +572,7 @@
     </div>
   </nav>
 
+  <!-- Detail Modal -->
   <div class="modal-overlay" id="detail-modal">
     <div class="modal-banner-wrap">
       <img id="m-banner" class="modal-banner" src="" alt="Banner">
@@ -486,8 +581,14 @@
         <div class="modal-circle-btn" onclick="closeModal()">
           <svg fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
         </div>
-        <div class="modal-circle-btn" onclick="shareCurrentAnime()">
-          <svg fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+        <div style="display:flex; gap:10px;">
+          <!-- Feature 5 Favorite Button -->
+          <div class="modal-circle-btn" id="m-fav-btn" onclick="toggleActiveFavorite()">
+            <svg fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+          </div>
+          <div class="modal-circle-btn" onclick="shareCurrentAnime()">
+            <svg fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+          </div>
         </div>
       </div>
     </div>
@@ -516,7 +617,8 @@
         </div>
       </div>
 
-      <div class="ep-tracker-box">
+      <!-- Episode Tracker -->
+      <div class="box-block">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
           <span style="font-size:0.85rem; font-weight:700;">Episode Progress</span>
           <span id="m-ep-counter" class="ep-counter-badge" onclick="promptCustomEpisode()" title="Click to enter episode manually">
@@ -529,6 +631,21 @@
         </div>
       </div>
 
+      <!-- Feature 2: Personal Rating Interactive Section -->
+      <div class="box-block">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span style="font-size:0.85rem; font-weight:700;">My Personal Rating</span>
+          <span style="font-size:0.75rem; color:var(--text-muted);">(1 - 10)</span>
+        </div>
+        <div class="score-control-wrap">
+          <button class="score-btn" onclick="adjustActiveScore(-0.5)">-</button>
+          <div class="score-display-btn" id="m-score-display" onclick="promptCustomScore()">
+            ⭐ No Score (Tap to Rate)
+          </div>
+          <button class="score-btn" onclick="adjustActiveScore(0.5)">+</button>
+        </div>
+      </div>
+
       <div style="font-size:0.88rem; font-weight:800; color:var(--accent); margin-bottom:8px;">SYNOPSIS</div>
       <div id="m-desc" style="font-size:0.88rem; line-height:1.65; color:#d6d0c4; margin-bottom:24px;"></div>
 
@@ -537,7 +654,7 @@
         <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-subtle); padding-bottom:8px;"><span style="color:var(--text-muted);">Studio</span><span id="m-studio" style="font-weight:700;">-</span></div>
         <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-subtle); padding-bottom:8px;"><span style="color:var(--text-muted);">Format</span><span id="m-format" style="font-weight:700;">TV</span></div>
         <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-subtle); padding-bottom:8px;"><span style="color:var(--text-muted);">Status</span><span id="m-status" style="font-weight:700;">Finished</span></div>
-        <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-subtle); padding-bottom:8px;"><span style="color:var(--text-muted);">Score</span><span id="m-score" style="font-weight:700;">N/A</span></div>
+        <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-subtle); padding-bottom:8px;"><span style="color:var(--text-muted);">AniList Score</span><span id="m-score" style="font-weight:700;">N/A</span></div>
       </div>
     </div>
   </div>
@@ -549,6 +666,7 @@
     let animeCache = {};
     let activeAnime = null;
     let suggestTimer = null;
+    let selectedScheduleDayOffset = 0; // 0 = Today, 1 = Tomorrow, etc.
 
     function stringToInternal(str) {
       if (!str) return 'PLANNING';
@@ -577,12 +695,15 @@
         list.forEach(item => {
           stringMap[item.id] = {
             status: internalToString(item.status),
-            episode: String(item.episodes_watched || "0")
+            episode: String(item.episodes_watched || "0"),
+            score: String(item.user_score || "0"),
+            fav: item.is_favorite ? "1" : "0"
           };
         });
         window.otakuFirebase.saveStringMap(activeUser, stringMap);
       }
       updateCounts();
+      renderFavoritesShowcase();
     }
 
     function updateGreeting() {
@@ -641,7 +762,9 @@
           return {
             ...item,
             status: stringToInternal(userMeta?.status),
-            episodes_watched: parseInt(userMeta?.episode || "0") || 0
+            episodes_watched: parseInt(userMeta?.episode || "0") || 0,
+            user_score: parseFloat(userMeta?.score || "0") || 0,
+            is_favorite: userMeta?.fav === "1"
           };
         });
       } catch (err) {
@@ -682,6 +805,7 @@
       }
       updateGreeting();
       updateCounts();
+      renderFavoritesShowcase();
     }
 
     async function handleGoogleSignIn() {
@@ -738,6 +862,99 @@
       return list;
     }
 
+    /* Feature 1: Weekly Airing Schedule Query */
+    async function fetchAiringSchedule(dayOffset) {
+      const startOfDay = new Date();
+      startOfDay.setDate(startOfDay.getDate() + dayOffset);
+      startOfDay.setHours(0, 0, 0, 0);
+      const airStart = Math.floor(startOfDay.getTime() / 1000);
+      const airEnd = airStart + 86400;
+
+      const query = `
+        query ($airStart: Int, $airEnd: Int) {
+          Page(page: 1, perPage: 16) {
+            airingSchedules(airingAt_greater: $airStart, airingAt_lesser: $airEnd) {
+              episode
+              airingAt
+              media {
+                id
+                title { english romaji }
+                coverImage { large extraLarge }
+                bannerImage
+                averageScore
+                format
+                episodes
+                status
+                description(asHtml: false)
+                genres
+                startDate { year }
+                trailer { id site }
+                studios(isMain: true) { nodes { name } }
+              }
+            }
+          }
+        }
+      `;
+      try {
+        const res = await fetch('https://graphql.anilist.co', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query, variables: { airStart, airEnd } })
+        });
+        const data = await res.json();
+        const scheds = data.data?.Page?.airingSchedules || [];
+        const seen = new Set();
+        const results = [];
+        scheds.forEach(s => {
+          if (s.media && !seen.has(s.media.id)) {
+            seen.add(s.media.id);
+            animeCache[s.media.id] = s.media;
+            results.push({ ...s.media, airingEpisode: s.episode });
+          }
+        });
+        return results;
+      } catch (err) {
+        console.error("Schedule error:", err);
+        return [];
+      }
+    }
+
+    function initSchedulePills() {
+      const container = document.getElementById('schedule-days-container');
+      container.innerHTML = '';
+      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const today = new Date();
+
+      for (let i = 0; i < 7; i++) {
+        const targetDate = new Date();
+        targetDate.setDate(today.getDate() + i);
+        const dayName = i === 0 ? 'Today' : days[targetDate.getDay()];
+
+        const pill = document.createElement('div');
+        pill.className = `day-pill ${i === 0 ? 'active' : ''}`;
+        pill.innerText = dayName;
+        pill.onclick = () => selectScheduleDay(i, pill, dayName);
+        container.appendChild(pill);
+      }
+    }
+
+    async function selectScheduleDay(offset, pillEl, dayName) {
+      document.querySelectorAll('#schedule-days-container .day-pill').forEach(p => p.classList.remove('active'));
+      pillEl.classList.add('active');
+      document.getElementById('sched-active-day-label').innerText = dayName.toUpperCase();
+
+      const schedRow = document.getElementById('schedule-row');
+      schedRow.innerHTML = '<div style="color:var(--text-muted); padding:20px;">Fetching day schedule...</div>';
+      
+      const list = await fetchAiringSchedule(offset);
+      schedRow.innerHTML = '';
+      if (!list.length) {
+        schedRow.innerHTML = '<div style="color:var(--text-muted); padding:20px;">No scheduled releases found for this day.</div>';
+        return;
+      }
+      list.forEach(item => schedRow.appendChild(createCard(item)));
+    }
+
     function createCard(item) {
       const title = item.title?.english || item.title?.romaji || 'Untitled';
       const cleanTitle = title.replace(/'/g, "\\'").replace(/"/g, '&quot;');
@@ -746,7 +963,8 @@
       const year = item.startDate?.year || '';
       const primaryGenre = (item.genres && item.genres[0]) ? item.genres[0] : 'Anime';
       
-      const isSaved = userLibrary.some(x => x.id === item.id);
+      const savedEntry = userLibrary.find(x => x.id === item.id);
+      const isSaved = !!savedEntry;
 
       const card = document.createElement('div');
       card.className = 'media-card';
@@ -758,9 +976,9 @@
           </div>
         </div>
         <div class="card-meta-box">
-          <div class="genre-tag-inline">${primaryGenre}</div>
+          <div class="genre-tag-inline">${item.airingEpisode ? `Ep ${item.airingEpisode} Airing` : primaryGenre}</div>
           <div class="media-title" title="${cleanTitle}">${title}</div>
-          <div class="media-subinfo"><span>${year}</span><span style="color:var(--accent); font-weight:700;">${score}</span></div>
+          <div class="media-subinfo"><span>${year}</span><span style="color:var(--accent); font-weight:700;">${savedEntry?.user_score ? `⭐ ${savedEntry.user_score}` : score}</span></div>
         </div>
       `;
       card.onclick = (e) => {
@@ -771,6 +989,12 @@
 
     async function loadCarousels() {
       try {
+        initSchedulePills();
+        const initialSched = await fetchAiringSchedule(0);
+        const schedRow = document.getElementById('schedule-row');
+        schedRow.innerHTML = '';
+        initialSched.forEach(item => schedRow.appendChild(createCard(item)));
+
         const airing = await queryAniList({ status: 'RELEASING', sort: ['POPULARITY_DESC'] });
         const airingRow = document.getElementById('airing-row');
         airingRow.innerHTML = '';
@@ -911,6 +1135,72 @@
       const watched = entry?.episodes_watched || 0;
       const total = activeAnime.episodes || '?';
       document.getElementById('m-ep-counter').innerText = `${watched} / ${total} Ep (Tap to edit)`;
+
+      // Score Update
+      const scr = entry?.user_score;
+      document.getElementById('m-score-display').innerText = scr ? `⭐ ${scr.toFixed(1)} / 10` : '⭐ No Score (Tap to Rate)';
+
+      // Favorite Button State
+      const favBtn = document.getElementById('m-fav-btn');
+      favBtn.classList.toggle('fav-active', !!entry?.is_favorite);
+    }
+
+    /* Feature 5: Toggle Favorite Pin */
+    async function toggleActiveFavorite() {
+      if (!activeAnime) return;
+      let entry = userLibrary.find(x => x.id === activeAnime.id);
+
+      if (!entry) {
+        entry = { ...activeAnime, status: 'PLANNING', episodes_watched: 0, user_score: 0, is_favorite: true };
+        userLibrary.push(entry);
+      } else {
+        entry.is_favorite = !entry.is_favorite;
+      }
+
+      await persistLibrary(userLibrary);
+      updateModalUI();
+    }
+
+    /* Feature 2: Adjust & Prompt Personal Score */
+    async function adjustActiveScore(delta) {
+      if (!activeAnime) return;
+      let entry = userLibrary.find(x => x.id === activeAnime.id);
+
+      if (!entry) {
+        entry = { ...activeAnime, status: 'WATCHING', episodes_watched: 0, user_score: Math.max(1, Math.min(10, 5 + delta)), is_favorite: false };
+        userLibrary.push(entry);
+      } else {
+        const current = entry.user_score || 5;
+        entry.user_score = Math.max(1, Math.min(10, parseFloat((current + delta).toFixed(1))));
+      }
+
+      await persistLibrary(userLibrary);
+      updateModalUI();
+    }
+
+    async function promptCustomScore() {
+      if (!activeAnime) return;
+      let entry = userLibrary.find(x => x.id === activeAnime.id);
+      const current = entry?.user_score || 8.0;
+
+      const input = prompt("Enter your personal score (1 to 10):", current);
+      if (input === null) return;
+
+      const num = parseFloat(input);
+      if (isNaN(num) || num < 1 || num > 10) {
+        alert("Please enter a valid rating between 1 and 10.");
+        return;
+      }
+
+      if (!entry) {
+        entry = { ...activeAnime, status: 'WATCHING', episodes_watched: 0, user_score: num, is_favorite: false };
+        userLibrary.push(entry);
+      } else {
+        entry.user_score = num;
+      }
+
+      await persistLibrary(userLibrary);
+      updateModalUI();
     }
 
     async function toggleTrackingCategory(targetCategory) {
@@ -927,7 +1217,7 @@
         }
       } else {
         const fullEps = (targetCategory === 'COMPLETED' && activeAnime.episodes) ? activeAnime.episodes : 0;
-        userLibrary.push({ ...activeAnime, status: targetCategory, episodes_watched: fullEps });
+        userLibrary.push({ ...activeAnime, status: targetCategory, episodes_watched: fullEps, user_score: 0, is_favorite: false });
       }
 
       await persistLibrary(userLibrary);
@@ -952,7 +1242,7 @@
       const clamped = Math.min(total, num);
 
       if (!entry) {
-        entry = { ...activeAnime, status: 'WATCHING', episodes_watched: clamped };
+        entry = { ...activeAnime, status: 'WATCHING', episodes_watched: clamped, user_score: 0, is_favorite: false };
         userLibrary.push(entry);
       } else {
         entry.episodes_watched = clamped;
@@ -971,7 +1261,7 @@
       let entry = userLibrary.find(x => x.id === activeAnime.id);
 
       if (!entry) {
-        entry = { ...activeAnime, status: 'WATCHING', episodes_watched: 0 };
+        entry = { ...activeAnime, status: 'WATCHING', episodes_watched: 0, user_score: 0, is_favorite: false };
         userLibrary.push(entry);
       }
 
@@ -1013,7 +1303,7 @@
         userLibrary.splice(idx, 1);
         e.currentTarget.classList.remove('saved');
       } else {
-        userLibrary.push({ ...target, status: 'PLANNING', episodes_watched: 0 });
+        userLibrary.push({ ...target, status: 'PLANNING', episodes_watched: 0, user_score: 0, is_favorite: false });
         e.currentTarget.classList.add('saved');
       }
       await persistLibrary(userLibrary);
@@ -1024,6 +1314,33 @@
       document.getElementById('stat-watching').innerText = userLibrary.filter(x => x.status === 'WATCHING').length;
       document.getElementById('stat-watched').innerText = userLibrary.filter(x => x.status === 'COMPLETED').length;
       document.getElementById('stat-eps').innerText = userLibrary.reduce((acc, c) => acc + (c.episodes_watched || 0), 0);
+    }
+
+    function renderFavoritesShowcase() {
+      const favWrap = document.getElementById('fav-showcase-wrap');
+      const favRow = document.getElementById('fav-showcase-row');
+      const favs = userLibrary.filter(x => x.is_favorite);
+
+      if (!favs.length) {
+        favWrap.style.display = 'none';
+        return;
+      }
+
+      favWrap.style.display = 'block';
+      favRow.innerHTML = '';
+      favs.forEach(item => {
+        const title = item.title?.english || item.title?.romaji || 'Anime';
+        const img = item.coverImage?.large || item.coverImage?.extraLarge || '';
+        const card = document.createElement('div');
+        card.className = 'fav-card';
+        card.innerHTML = `
+          <img src="${img}" alt="${title}">
+          <div class="fav-badge">❤️</div>
+          <div class="fav-card-title">${title}</div>
+        `;
+        card.onclick = () => openModal(item);
+        favRow.appendChild(card);
+      });
     }
 
     function filterWatchlistTab(tab, btn) {
@@ -1054,6 +1371,7 @@
       document.getElementById('nav-profile').classList.toggle('active', t === 'profile');
 
       if (t === 'watchlist') renderWatchlist();
+      if (t === 'profile') renderFavoritesShowcase();
     }
 
     window.addEventListener("firebase-initialized", () => {

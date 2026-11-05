@@ -4,6 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Otaku Vault</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0c0b0a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="icon" type="image/png" href="icon.png">
+  <link rel="apple-touch-icon" href="icon.png">
+  
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -52,7 +59,6 @@
           onAuthStateChanged(auth, callback);
         }
       },
-      // Saves string-based structure: { anime_id: { status: "watch"|"unwatch", episode: "string" } }
       saveStringMap: async (user, stringMap) => {
         if (!user || !db) return;
         try {
@@ -148,6 +154,7 @@
     .chips-label {
       font-size: 0.7rem; font-weight: 800; color: var(--text-muted);
       letter-spacing: 1px; margin-bottom: 8px; text-transform: uppercase;
+      display: flex; justify-content: space-between; align-items: center;
     }
     .chips-row {
       display: flex; gap: 8px; overflow-x: auto; padding-bottom: 14px; scrollbar-width: none;
@@ -159,6 +166,7 @@
       font-size: 0.8rem; font-weight: 700; white-space: nowrap; cursor: pointer;
     }
     .chip.active { background: var(--accent); color: #0c0b0a; border-color: var(--accent); }
+    .chip.special { border-color: rgba(245, 197, 24, 0.4); color: #fff; }
 
     .hero-banner {
       position: relative;
@@ -351,19 +359,22 @@
       <div class="suggestions-dropdown" id="search-suggestions"></div>
     </div>
 
-    <div class="chips-label">Filter By Genre</div>
+    <div class="chips-label">
+      <span>EXPLORE & FILTERS</span>
+    </div>
     <div class="chips-row" id="genre-chips">
-      <button class="chip active" onclick="filterByGenre('', this)">All Genres</button>
-      <button class="chip" onclick="filterByGenre('Action', this)">Action</button>
-      <button class="chip" onclick="filterByGenre('Adventure', this)">Adventure</button>
-      <button class="chip" onclick="filterByGenre('Comedy', this)">Comedy</button>
-      <button class="chip" onclick="filterByGenre('Drama', this)">Drama</button>
-      <button class="chip" onclick="filterByGenre('Fantasy', this)">Fantasy</button>
-      <button class="chip" onclick="filterByGenre('Romance', this)">Romance</button>
-      <button class="chip" onclick="filterByGenre('Sci-Fi', this)">Sci-Fi</button>
-      <button class="chip" onclick="filterByGenre('Supernatural', this)">Supernatural</button>
-      <button class="chip" onclick="filterByGenre('Mystery', this)">Mystery</button>
-      <button class="chip" onclick="filterByGenre('Sports', this)">Sports</button>
+      <button class="chip active" onclick="applyCustomFilter('ALL', this)">All</button>
+      <button class="chip special" onclick="applyCustomFilter('SEASONAL', this)">🔥 This Season</button>
+      <button class="chip special" onclick="applyCustomFilter('TOP_RATED', this)">⭐ Top Rated</button>
+      <button class="chip" onclick="applyCustomFilter('Action', this)">Action</button>
+      <button class="chip" onclick="applyCustomFilter('Adventure', this)">Adventure</button>
+      <button class="chip" onclick="applyCustomFilter('Comedy', this)">Comedy</button>
+      <button class="chip" onclick="applyCustomFilter('Drama', this)">Drama</button>
+      <button class="chip" onclick="applyCustomFilter('Fantasy', this)">Fantasy</button>
+      <button class="chip" onclick="applyCustomFilter('Romance', this)">Romance</button>
+      <button class="chip" onclick="applyCustomFilter('Sci-Fi', this)">Sci-Fi</button>
+      <button class="chip" onclick="applyCustomFilter('Supernatural', this)">Supernatural</button>
+      <button class="chip" onclick="applyCustomFilter('Mystery', this)">Mystery</button>
     </div>
 
     <div class="hero-banner">
@@ -374,7 +385,7 @@
       <div class="hero-content">
         <div class="hero-tag">DISCOVER DAILY</div>
         <div class="hero-title" id="greeting-txt">Welcome Explorer 👋</div>
-        <div class="hero-sub">Explore by genre and track your personal anime progress</div>
+        <div class="hero-sub">Explore by genre, this season & track your anime progress</div>
       </div>
     </div>
 
@@ -426,7 +437,7 @@
       <p id="prof-email" style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;">Sign in with Gmail for Cloud Sync</p>
       
       <div id="sync-indicator" class="sync-status-indicator" style="display:none;">
-        <span class="sync-dot"></span> String-based Ultra-Light Sync Active
+        <span class="sync-dot"></span> String-based Cloud Sync Active
       </div>
 
       <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; margin-top:20px; padding-top:16px; border-top:1px solid var(--border-subtle);">
@@ -539,13 +550,12 @@
     let activeAnime = null;
     let suggestTimer = null;
 
-    // String converter: Watch / unwatch / watched to Internal status
     function stringToInternal(str) {
       if (!str) return 'PLANNING';
       const s = String(str).toLowerCase();
       if (s === 'watch' || s === 'watching') return 'WATCHING';
       if (s === 'watched' || s === 'completed') return 'COMPLETED';
-      return 'PLANNING'; // unwatch
+      return 'PLANNING';
     }
 
     function internalToString(status) {
@@ -558,7 +568,6 @@
       return JSON.parse(localStorage.getItem('ov_offline_library') || '[]');
     }
 
-    // Auto sync using pure string format
     async function persistLibrary(list) {
       userLibrary = list;
       localStorage.setItem('ov_offline_library', JSON.stringify(list));
@@ -698,9 +707,9 @@
 
     async function queryAniList(variables) {
       const query = `
-        query ($search: String, $sort: [MediaSort], $status: MediaStatus, $genre: String) {
+        query ($search: String, $sort: [MediaSort], $status: MediaStatus, $genre: String, $season: MediaSeason, $seasonYear: Int) {
           Page(page: 1, perPage: 16) {
-            media(search: $search, sort: $sort, status: $status, genre: $genre, type: ANIME, isAdult: false) {
+            media(search: $search, sort: $sort, status: $status, genre: $genre, season: $season, seasonYear: $seasonYear, type: ANIME, isAdult: false) {
               id
               title { english romaji }
               coverImage { large extraLarge }
@@ -819,7 +828,17 @@
       if (item) openModal(item);
     }
 
-    async function filterByGenre(genre, btn) {
+    function getCurrentSeasonInfo() {
+      const month = new Date().getMonth();
+      const year = new Date().getFullYear();
+      let season = 'FALL';
+      if (month >= 0 && month <= 2) season = 'WINTER';
+      else if (month >= 3 && month <= 5) season = 'SPRING';
+      else if (month >= 6 && month <= 8) season = 'SUMMER';
+      return { season, year };
+    }
+
+    async function applyCustomFilter(type, btn) {
       document.querySelectorAll('#genre-chips .chip').forEach(c => c.classList.remove('active'));
       btn.classList.add('active');
 
@@ -828,17 +847,29 @@
       const dynTitle = document.getElementById('dynamic-title');
       const defSec = document.getElementById('default-sections');
 
-      if (!genre) {
+      if (type === 'ALL') {
         dynSec.style.display = 'none';
         defSec.style.display = 'block';
         return;
       }
+
       defSec.style.display = 'none';
       dynSec.style.display = 'block';
-      dynTitle.innerText = `${genre} Anime`;
-      dynRow.innerHTML = '<div style="color:var(--text-muted); padding:20px;">Fetching...</div>';
+      dynRow.innerHTML = '<div style="color:var(--text-muted); padding:20px;">Fetching Anime...</div>';
 
-      const items = await queryAniList({ genre, sort: ['POPULARITY_DESC'] });
+      let items = [];
+      if (type === 'SEASONAL') {
+        const info = getCurrentSeasonInfo();
+        dynTitle.innerText = `${info.season} ${info.year} Anime`;
+        items = await queryAniList({ season: info.season, seasonYear: info.year, sort: ['POPULARITY_DESC'] });
+      } else if (type === 'TOP_RATED') {
+        dynTitle.innerText = `Top Rated Anime`;
+        items = await queryAniList({ sort: ['SCORE_DESC'] });
+      } else {
+        dynTitle.innerText = `${type} Anime`;
+        items = await queryAniList({ genre: type, sort: ['POPULARITY_DESC'] });
+      }
+
       dynRow.innerHTML = '';
       items.forEach(item => dynRow.appendChild(createCard(item)));
     }

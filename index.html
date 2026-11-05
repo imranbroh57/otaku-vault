@@ -99,6 +99,8 @@
       --border: #302d25;
       --border-subtle: rgba(255, 255, 255, 0.08);
       --heart: #ef4444;
+      --hindi-badge: #ff5722;
+      --hindi-bg: rgba(255, 87, 34, 0.15);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; }
     body { background-color: var(--bg); color: var(--text); min-height: 100vh; padding-bottom: 85px; overflow-x: hidden; }
@@ -152,24 +154,6 @@
     .suggestion-title { font-size: 0.85rem; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .suggestion-sub { font-size: 0.72rem; color: var(--text-muted); }
 
-    .chips-label {
-      font-size: 0.7rem; font-weight: 800; color: var(--text-muted);
-      letter-spacing: 1px; margin-bottom: 8px; text-transform: uppercase;
-      display: flex; justify-content: space-between; align-items: center;
-    }
-    .chips-row {
-      display: flex; gap: 8px; overflow-x: auto; padding-bottom: 12px; scrollbar-width: none;
-    }
-    .chips-row::-webkit-scrollbar { display: none; }
-    .chip {
-      background: var(--surface); border: 1px solid var(--border);
-      color: var(--text-muted); padding: 7px 15px; border-radius: 20px;
-      font-size: 0.8rem; font-weight: 700; white-space: nowrap; cursor: pointer;
-    }
-    .chip.active { background: var(--accent); color: #0c0b0a; border-color: var(--accent); }
-    .chip.special { border-color: rgba(245, 197, 24, 0.4); color: #fff; }
-
-    /* Schedule Bar Styles */
     .schedule-bar {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -193,6 +177,24 @@
     .day-pill.active {
       background: var(--accent); color: #000; border-color: var(--accent);
     }
+
+    .chips-label {
+      font-size: 0.7rem; font-weight: 800; color: var(--text-muted);
+      letter-spacing: 1px; margin-bottom: 8px; text-transform: uppercase;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .chips-row {
+      display: flex; gap: 8px; overflow-x: auto; padding-bottom: 12px; scrollbar-width: none;
+    }
+    .chips-row::-webkit-scrollbar { display: none; }
+    .chip {
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--text-muted); padding: 7px 15px; border-radius: 20px;
+      font-size: 0.8rem; font-weight: 700; white-space: nowrap; cursor: pointer;
+    }
+    .chip.active { background: var(--accent); color: #0c0b0a; border-color: var(--accent); }
+    .chip.special { border-color: rgba(245, 197, 24, 0.4); color: #fff; }
+    .chip.hindi { border-color: var(--hindi-badge); color: #ffab91; }
 
     .hero-banner {
       position: relative;
@@ -255,6 +257,15 @@
     .icon-circle-btn.saved { background: var(--accent); border-color: var(--accent); }
     .icon-circle-btn.saved svg { stroke: #0c0b0a; fill: #0c0b0a; }
 
+    /* Floating Hindi Badge on Card */
+    .hindi-ribbon {
+      position: absolute; top: 8px; left: 8px; z-index: 2;
+      background: var(--hindi-badge); color: #fff;
+      font-size: 0.62rem; font-weight: 800; padding: 2px 7px;
+      border-radius: 6px; text-transform: uppercase; letter-spacing: 0.5px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+    }
+
     .card-meta-box { padding: 10px; display: flex; flex-direction: column; flex: 1; justify-content: space-between; }
     .media-title {
       font-size: 0.82rem; font-weight: 700; line-height: 1.3;
@@ -290,7 +301,18 @@
 
     .modal-body { padding: 0 20px 40px; margin-top: -20px; position: relative; z-index: 5; }
     .modal-title { font-size: 1.5rem; font-weight: 800; margin-bottom: 4px; }
-    .modal-tags { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 14px; }
+    .modal-tags { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px; }
+
+    .lang-capsules-wrap {
+      display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px;
+    }
+    .lang-pill {
+      font-size: 0.72rem; font-weight: 700; padding: 4px 10px; border-radius: 12px;
+      background: var(--surface); border: 1px solid var(--border); color: var(--text-muted);
+    }
+    .lang-pill.hindi-active {
+      background: var(--hindi-bg); border-color: var(--hindi-badge); color: #ff8a65; font-weight: 800;
+    }
 
     .modal-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
     .action-tile {
@@ -318,7 +340,6 @@
       font-weight: 700; padding: 8px 14px; border-radius: 10px; flex: 1; cursor: pointer;
     }
 
-    /* Score Interactive Bar */
     .score-control-wrap {
       display: flex; align-items: center; justify-content: space-between; gap: 10px;
     }
@@ -332,17 +353,11 @@
       color: #fff; font-weight: 800; width: 38px; height: 38px; border-radius: 10px; cursor: pointer;
     }
 
-    /* Profile Favorites Showcase */
-    .fav-showcase-box {
-      margin-bottom: 24px;
-    }
-    .fav-row {
-      display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: none;
-    }
+    .fav-showcase-box { margin-bottom: 24px; }
+    .fav-row { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: none; }
     .fav-row::-webkit-scrollbar { display: none; }
     .fav-card {
-      flex: 0 0 120px;
-      position: relative; border-radius: 12px; overflow: hidden;
+      flex: 0 0 120px; position: relative; border-radius: 12px; overflow: hidden;
       border: 1px solid rgba(239, 68, 68, 0.35); cursor: pointer;
     }
     .fav-card img { width: 100%; height: 160px; object-fit: cover; }
@@ -428,15 +443,13 @@
       <div class="suggestions-dropdown" id="search-suggestions"></div>
     </div>
 
-    <!-- Feature 1: Weekly Airing Schedule Section -->
+    <!-- Weekly Airing Schedule Section -->
     <div class="schedule-bar">
       <div class="sched-head">
         <span>🗓️ WEEKLY AIRING SCHEDULE</span>
         <span id="sched-active-day-label">TODAY</span>
       </div>
-      <div class="sched-days-wrap" id="schedule-days-container">
-        <!-- Injected via JS -->
-      </div>
+      <div class="sched-days-wrap" id="schedule-days-container"></div>
     </div>
 
     <div class="chips-label">
@@ -444,6 +457,7 @@
     </div>
     <div class="chips-row" id="genre-chips">
       <button class="chip active" onclick="applyCustomFilter('ALL', this)">All</button>
+      <button class="chip hindi" onclick="applyCustomFilter('HINDI_DUB', this)">🎙️ Hindi Dubbed</button>
       <button class="chip special" onclick="applyCustomFilter('SEASONAL', this)">🔥 This Season</button>
       <button class="chip special" onclick="applyCustomFilter('TOP_RATED', this)">⭐ Top Rated</button>
       <button class="chip" onclick="applyCustomFilter('Action', this)">Action</button>
@@ -453,7 +467,6 @@
       <button class="chip" onclick="applyCustomFilter('Fantasy', this)">Fantasy</button>
       <button class="chip" onclick="applyCustomFilter('Romance', this)">Romance</button>
       <button class="chip" onclick="applyCustomFilter('Sci-Fi', this)">Sci-Fi</button>
-      <button class="chip" onclick="applyCustomFilter('Supernatural', this)">Supernatural</button>
     </div>
 
     <div class="hero-banner">
@@ -464,7 +477,7 @@
       <div class="hero-content">
         <div class="hero-tag">DISCOVER DAILY</div>
         <div class="hero-title" id="greeting-txt">Welcome Explorer 👋</div>
-        <div class="hero-sub">Explore by genre, air schedule & track your anime progress</div>
+        <div class="hero-sub">Explore by genre, Hindi dub, air schedule & track progress</div>
       </div>
     </div>
 
@@ -534,7 +547,7 @@
       </div>
     </div>
 
-    <!-- Feature 5: All-Time Favorites Showcase in Profile -->
+    <!-- All-Time Favorites Showcase in Profile -->
     <div class="fav-showcase-box" id="fav-showcase-wrap" style="display:none;">
       <div class="section-head" style="margin-top:0;">
         <div class="section-title">❤️ All-Time Favorites</div>
@@ -582,7 +595,6 @@
           <svg fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
         </div>
         <div style="display:flex; gap:10px;">
-          <!-- Feature 5 Favorite Button -->
           <div class="modal-circle-btn" id="m-fav-btn" onclick="toggleActiveFavorite()">
             <svg fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
           </div>
@@ -596,6 +608,11 @@
     <div class="modal-body">
       <h2 id="m-title" class="modal-title"></h2>
       <div id="m-tags" class="modal-tags"></div>
+
+      <!-- New Audio / Available Languages Section -->
+      <div style="font-size:0.75rem; font-weight:800; color:var(--accent); margin-bottom:6px; letter-spacing:0.5px;">AUDIO & DUBS AVAILABLE</div>
+      <div class="lang-capsules-wrap" id="m-audio-langs"></div>
+
       <div id="m-genres" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px;"></div>
 
       <div class="modal-actions">
@@ -631,7 +648,7 @@
         </div>
       </div>
 
-      <!-- Feature 2: Personal Rating Interactive Section -->
+      <!-- Personal Rating Interactive Section -->
       <div class="box-block">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
           <span style="font-size:0.85rem; font-weight:700;">My Personal Rating</span>
@@ -666,7 +683,39 @@
     let animeCache = {};
     let activeAnime = null;
     let suggestTimer = null;
-    let selectedScheduleDayOffset = 0; // 0 = Today, 1 = Tomorrow, etc.
+
+    // Known anime titles that have official Hindi dubs (Crunchyroll India, Netflix, Muse India)
+    const HINDI_DUBBED_TITLES = [
+      "jujutsu kaisen", "demon slayer", "chainsaw man", "solo leveling", 
+      "naruto", "naruto shippuden", "boruto", "one punch man", "dragon ball", 
+      "kaiju no. 8", "black clover", "dr. stone", "vinland saga", "spy x family",
+      "attack on titan", "my hero academia", "tokyo revengers", "mashle", 
+      "shangri-la frontier", "blue lock", "suzume", "your name", "weathering with you",
+      "mushoku tensei", "ranking of kings", "hell's paradise", "wind breaker"
+    ];
+
+    function checkHasHindiDub(item) {
+      if (!item) return false;
+      const eng = (item.title?.english || "").toLowerCase();
+      const rom = (item.title?.romaji || "").toLowerCase();
+      
+      const inList = HINDI_DUBBED_TITLES.some(k => eng.includes(k) || rom.includes(k));
+      if (inList) return true;
+
+      // Check external links (Crunchyroll, Netflix)
+      if (item.externalLinks && Array.isArray(item.externalLinks)) {
+        return item.externalLinks.some(l => (l.site && l.site.toLowerCase().includes("crunchyroll")) || (l.language && l.language.toLowerCase() === "hindi"));
+      }
+      return false;
+    }
+
+    function getAvailableAudioTracks(item) {
+      const tracks = ["🇯🇵 Japanese (Sub/Raw)", "🇺🇸 English Dub"];
+      if (checkHasHindiDub(item)) {
+        tracks.unshift("🇮🇳 Hindi Dub (Official)");
+      }
+      return tracks;
+    }
 
     function stringToInternal(str) {
       if (!str) return 'PLANNING';
@@ -743,6 +792,7 @@
               startDate { year }
               trailer { id site }
               studios(isMain: true) { nodes { name } }
+              externalLinks { site language }
             }
           }
         }
@@ -847,6 +897,7 @@
               startDate { year }
               trailer { id site }
               studios(isMain: true) { nodes { name } }
+              externalLinks { site language }
             }
           }
         }
@@ -862,7 +913,6 @@
       return list;
     }
 
-    /* Feature 1: Weekly Airing Schedule Query */
     async function fetchAiringSchedule(dayOffset) {
       const startOfDay = new Date();
       startOfDay.setDate(startOfDay.getDate() + dayOffset);
@@ -890,6 +940,7 @@
                 startDate { year }
                 trailer { id site }
                 studios(isMain: true) { nodes { name } }
+                externalLinks { site language }
               }
             }
           }
@@ -962,6 +1013,7 @@
       const score = item.averageScore ? `⭐ ${(item.averageScore / 10).toFixed(1)}` : 'N/A';
       const year = item.startDate?.year || '';
       const primaryGenre = (item.genres && item.genres[0]) ? item.genres[0] : 'Anime';
+      const hasHindi = checkHasHindiDub(item);
       
       const savedEntry = userLibrary.find(x => x.id === item.id);
       const isSaved = !!savedEntry;
@@ -970,6 +1022,7 @@
       card.className = 'media-card';
       card.innerHTML = `
         <img class="media-thumb" src="${img}" alt="${cleanTitle}" loading="lazy">
+        ${hasHindi ? '<div class="hindi-ribbon">🎙️ Hindi</div>' : ''}
         <div class="card-actions-float">
           <div class="icon-circle-btn ${isSaved ? 'saved' : ''}" onclick="quickSave(event, ${item.id})">
             <svg fill="none" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
@@ -1031,12 +1084,13 @@
           const pic = item.coverImage?.large || '';
           const yr = item.startDate?.year || '';
           const sc = item.averageScore ? `⭐ ${(item.averageScore / 10).toFixed(1)}` : '';
+          const hd = checkHasHindiDub(item) ? ' • 🎙️ Hindi' : '';
           return `
             <div class="suggestion-item" onclick="selectSuggestion(${item.id})">
               <img src="${pic}" alt="${t}">
               <div style="overflow:hidden;">
                 <div class="suggestion-title">${t}</div>
-                <div class="suggestion-sub">${yr} • ${sc} • ${item.format || 'TV'}</div>
+                <div class="suggestion-sub">${yr} • ${sc}${hd}</div>
               </div>
             </div>
           `;
@@ -1082,7 +1136,15 @@
       dynRow.innerHTML = '<div style="color:var(--text-muted); padding:20px;">Fetching Anime...</div>';
 
       let items = [];
-      if (type === 'SEASONAL') {
+      if (type === 'HINDI_DUB') {
+        dynTitle.innerText = `🎙️ Official Hindi Dubbed Anime`;
+        const popularList = await queryAniList({ sort: ['POPULARITY_DESC'] });
+        items = popularList.filter(item => checkHasHindiDub(item));
+        if (items.length < 8) {
+          const extra = await queryAniList({ search: "Jujutsu", sort: ['POPULARITY_DESC'] });
+          items = [...new Set([...items, ...extra.filter(item => checkHasHindiDub(item))])];
+        }
+      } else if (type === 'SEASONAL') {
         const info = getCurrentSeasonInfo();
         dynTitle.innerText = `${info.season} ${info.year} Anime`;
         items = await queryAniList({ season: info.season, seasonYear: info.year, sort: ['POPULARITY_DESC'] });
@@ -1095,6 +1157,10 @@
       }
 
       dynRow.innerHTML = '';
+      if (!items.length) {
+        dynRow.innerHTML = '<div style="color:var(--text-muted); padding:20px;">No anime found.</div>';
+        return;
+      }
       items.forEach(item => dynRow.appendChild(createCard(item)));
     }
 
@@ -1105,6 +1171,14 @@
       document.getElementById('m-banner').src = item.bannerImage || item.coverImage?.extraLarge || item.coverImage?.large;
       document.getElementById('m-tags').innerText = `${item.startDate?.year || ''} • ${item.format || 'TV'}`;
       
+      // Render Audio / Available Languages
+      const langBox = document.getElementById('m-audio-langs');
+      const tracks = getAvailableAudioTracks(item);
+      langBox.innerHTML = tracks.map(tr => {
+        const isHindi = tr.includes("Hindi");
+        return `<span class="lang-pill ${isHindi ? 'hindi-active' : ''}">${tr}</span>`;
+      }).join('');
+
       const genreBox = document.getElementById('m-genres');
       genreBox.innerHTML = (item.genres || []).map(g => `<span style="background:var(--surface); border:1px solid var(--border); color:var(--accent); font-size:0.72rem; font-weight:700; padding:4px 10px; border-radius:12px;">${g}</span>`).join('');
 
@@ -1136,16 +1210,13 @@
       const total = activeAnime.episodes || '?';
       document.getElementById('m-ep-counter').innerText = `${watched} / ${total} Ep (Tap to edit)`;
 
-      // Score Update
       const scr = entry?.user_score;
       document.getElementById('m-score-display').innerText = scr ? `⭐ ${scr.toFixed(1)} / 10` : '⭐ No Score (Tap to Rate)';
 
-      // Favorite Button State
       const favBtn = document.getElementById('m-fav-btn');
       favBtn.classList.toggle('fav-active', !!entry?.is_favorite);
     }
 
-    /* Feature 5: Toggle Favorite Pin */
     async function toggleActiveFavorite() {
       if (!activeAnime) return;
       let entry = userLibrary.find(x => x.id === activeAnime.id);
@@ -1161,7 +1232,6 @@
       updateModalUI();
     }
 
-    /* Feature 2: Adjust & Prompt Personal Score */
     async function adjustActiveScore(delta) {
       if (!activeAnime) return;
       let entry = userLibrary.find(x => x.id === activeAnime.id);

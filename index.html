@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Otaku Vault</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Firebase SDKs -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBY64hCzVFyjqyEm85ATJSvbHh7r69025w",
+      authDomain: "otaku-vault-8765e.firebaseapp.com",
+      projectId: "otaku-vault-8765e",
+      storageBucket: "otaku-vault-8765e.firebasestorage.app",
+      messagingSenderId: "676953241852",
+      appId: "1:676953241852:web:7f54f6d2fab0b3476d3f79",
+      measurementId: "G-HYY3C1ECR1"
+    };
+
+    let app, auth, db, provider;
+    try {
+      app = initializeApp(firebaseConfig);
+      auth = getAuth(app);
+      db = getFirestore(app);
+      provider = new GoogleAuthProvider();
+    } catch(err) {
+      console.error("Firebase init error:", err);
+    }
+
+    window.otakuFirebase = {
+      loginGoogle: async () => {
+        try {
+          const res = await signInWithPopup(auth, provider);
+          return res.user;
+        } catch(err) {
+          console.error("Google Auth error:", err);
+          throw err;
+        }
+      },
+      logout: async () => {
+        if (auth) await signOut(auth);
+      },
+      onAuth: (callback) => {
+        if (auth) {
+          onAuthStateChanged(auth, callback);
+        }
+      },
+      // Saves string-based structure: { anime_id: { status: "watch"|"unwatch", episode: "string" } }
+      saveStringMap: async (user, stringMap) => {
+        if (!user || !db) return;
+        try {
+          await setDoc(doc(db, "users", user.uid), {
+            vault: stringMap,
+            updatedAt: new Date().toISOString()
+          }, { merge: true });
+        } catch(err) {
+          console.error("Firestore Auto Save Error:", err);
+        }
+      },
+      loadStringMap: async (user) => {
+        if (!user || !db) return null;
+        try {
+          const snap = await getDoc(doc(db, "users", user.uid));
+          if (snap.exists() && snap.data().vault) {
+            return snap.data().vault;
+          }
+        } catch(err) {
+          console.error("Firestore Load Error:", err);
+        }
+        return null;
+      }
+    };
+
+    window.dispatchEvent(new Event("firebase-initialized"));
+  </script>
+
+  <style>
+    :root {
+      --bg: #0c0b0a;
+      --surface: #141310;
+      --card: #191815;
+      --accent: #f5c518;
+      --accent-soft: rgba(245, 197, 24, 0.12);
+      --text: #ffffff;
+      --text-muted: #a5a29b;
+      --border: #302d25;
+      --border-subtle: rgba(255, 255, 255, 0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; }
+    body { background-color: var(--bg); color: var(--text); min-height: 100vh; padding-bottom: 85px; overflow-x: hidden; }
+
+    .top-bar {
+      position: sticky; top: 0; z-index: 80;
+      background: rgba(12, 11, 10, 0.94);
+      backdrop-filter: blur(16px);
+      padding: 14px 18px;
+      display: flex; justify-content: space-between; align-items: center;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .brand { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+    .brand-logo {
+      background: linear-gradient(135deg, #2a2210, #141108);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      padding: 4px 8px; border-radius: 7px; font-weight: 800; font-size: 0.75rem;
+    }
+    .brand-title { font-size: 1.15rem; font-weight: 800; }
+    .brand-title span { color: var(--accent); }
+    .top-actions { display: flex; gap: 16px; align-items: center; }
+    .top-actions svg { width: 22px; height: 22px; stroke: var(--text-muted); cursor: pointer; }
+
+    .container { padding: 14px 16px; }
+
+    .search-wrapper { position: relative; margin-bottom: 14px; }
+    .search-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px 14px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .search-box svg { width: 18px; height: 18px; stroke: var(--text-muted); flex-shrink: 0; }
+    .search-box input {
+      flex: 1; background: transparent; border: none; outline: none;
+      color: #fff; font-size: 0.92rem;
+    }
+    .suggestions-dropdown {
+      position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 100;
+      background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+      max-height: 280px; overflow-y: auto; display: none; box-shadow: 0 10px 25px rgba(0,0,0,0.8);
+    }
+    .suggestion-item {
+      display: flex; align-items: center; gap: 12px; padding: 10px 14px;
+      border-bottom: 1px solid var(--border-subtle); cursor: pointer;
+    }
+    .suggestion-item:last-child { border-bottom: none; }
+    .suggestion-item img { width: 36px; height: 48px; object-fit: cover; border-radius: 6px; }
+    .suggestion-title { font-size: 0.85rem; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .suggestion-sub { font-size: 0.72rem; color: var(--text-muted); }
+
+    .chips-label {
+      font-size: 0.7rem; font-weight: 800; color: var(--text-muted);
+      letter-spacing: 1px; margin-bottom: 8px; text-transform: uppercase;
+    }
+    .chips-row {
+      display: flex; gap: 8px; overflow-x: auto; padding-bottom: 14px; scrollbar-width: none;
+    }
+    .chips-row::-webkit-scrollbar { display: none; }
+    .chip {
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--text-muted); padding: 7px 15px; border-radius: 20px;
+      font-size: 0.8rem; font-weight: 700; white-space: nowrap; cursor: pointer;
+    }
+    .chip.active { background: var(--accent); color: #0c0b0a; border-color: var(--accent); }
+
+    .hero-banner {
+      position: relative;
+      background: linear-gradient(135deg, rgba(245, 197, 24, 0.12), rgba(20, 18, 14, 0.95)), url('https://images.unsplash.com/photo-1578632767115-351597cf2477?w=800&auto=format&fit=crop') center/cover;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 24px 20px;
+      margin-bottom: 24px;
+      overflow: hidden;
+    }
+    .hero-banner::after {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(180deg, rgba(12,11,10,0.15) 0%, rgba(12,11,10,0.95) 100%);
+      z-index: 1;
+    }
+    .hero-content { position: relative; z-index: 2; max-width: 80%; }
+    .hero-tag { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent); font-weight: 800; margin-bottom: 6px; }
+    .hero-title { font-size: 1.4rem; font-weight: 800; line-height: 1.25; margin-bottom: 4px; }
+    .hero-sub { font-size: 0.82rem; color: var(--text-muted); }
+
+    .date-badge {
+      position: absolute; top: 16px; right: 16px; z-index: 2;
+      background: rgba(21, 20, 18, 0.88); border: 1px solid var(--border);
+      border-radius: 12px; padding: 6px 12px; text-align: center;
+    }
+    .date-badge .month { font-size: 0.65rem; color: var(--accent); font-weight: 800; }
+    .date-badge .day { font-size: 1.15rem; font-weight: 800; color: #fff; }
+
+    .section-head {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 12px; margin-top: 10px;
+    }
+    .section-title { font-size: 1.15rem; font-weight: 800; }
+    .carousel-row {
+      display: flex; gap: 14px; overflow-x: auto; padding-bottom: 12px; scrollbar-width: none;
+    }
+    .carousel-row::-webkit-scrollbar { display: none; }
+
+    .media-card {
+      flex: 0 0 145px;
+      background: var(--card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      overflow: hidden;
+      cursor: pointer;
+      display: flex; flex-direction: column;
+      position: relative;
+    }
+    .media-thumb { width: 100%; height: 200px; object-fit: cover; background: #201e1a; }
+    .card-actions-float { position: absolute; top: 8px; right: 8px; z-index: 2; }
+    .icon-circle-btn {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: rgba(12, 11, 10, 0.78); backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+    }
+    .icon-circle-btn svg { width: 15px; height: 15px; stroke: #fff; }
+    .icon-circle-btn.saved { background: var(--accent); border-color: var(--accent); }
+    .icon-circle-btn.saved svg { stroke: #0c0b0a; fill: #0c0b0a; }
+
+    .card-meta-box { padding: 10px; display: flex; flex-direction: column; flex: 1; justify-content: space-between; }
+    .media-title {
+      font-size: 0.82rem; font-weight: 700; line-height: 1.3;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+      margin-bottom: 4px;
+    }
+    .genre-tag-inline { font-size: 0.65rem; color: var(--accent); margin-bottom: 6px; }
+    .media-subinfo { font-size: 0.72rem; color: var(--text-muted); display: flex; justify-content: space-between; }
+
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 300;
+      background: #0c0b0a;
+      display: none; flex-direction: column; overflow-y: auto;
+    }
+    .modal-banner-wrap { width: 100%; height: 320px; position: relative; flex-shrink: 0; }
+    .modal-banner { width: 100%; height: 100%; object-fit: cover; }
+    .modal-banner-gradient {
+      position: absolute; inset: 0;
+      background: linear-gradient(180deg, rgba(12,11,10,0.2) 0%, rgba(12,11,10,0.7) 60%, #0c0b0a 100%);
+    }
+    .modal-nav-header {
+      position: absolute; top: 16px; left: 16px; right: 16px;
+      display: flex; justify-content: space-between; z-index: 10;
+    }
+    .modal-circle-btn {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: rgba(12, 11, 10, 0.65); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center; cursor: pointer;
+    }
+    .modal-circle-btn svg { width: 20px; height: 20px; stroke: #fff; }
+    .modal-body { padding: 0 20px 40px; margin-top: -20px; position: relative; z-index: 5; }
+    .modal-title { font-size: 1.5rem; font-weight: 800; margin-bottom: 4px; }
+    .modal-tags { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 14px; }
+
+    .modal-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+    .action-tile {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 12px 4px; text-align: center; cursor: pointer;
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+    }
+    .action-tile svg { width: 20px; height: 20px; stroke: var(--text-muted); }
+    .action-tile p { font-size: 0.72rem; font-weight: 700; color: var(--text-muted); }
+    .action-tile.active { border-color: var(--accent); background: var(--accent-soft); }
+    .action-tile.active svg { stroke: var(--accent); fill: var(--accent); }
+    .action-tile.active p { color: var(--accent); }
+
+    .ep-tracker-box {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; padding: 16px; margin-bottom: 22px;
+    }
+    .ep-counter-badge {
+      font-size: 0.85rem; font-weight: 800; color: var(--accent);
+      background: rgba(245, 197, 24, 0.1); border: 1px dashed var(--accent);
+      padding: 3px 10px; border-radius: 8px; cursor: pointer;
+    }
+    .ep-tracker-btn {
+      background: var(--card); border: 1px solid var(--border); color: #fff;
+      font-weight: 700; padding: 8px 14px; border-radius: 10px; flex: 1; cursor: pointer;
+    }
+
+    .bottom-nav {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 90;
+      background: rgba(18, 16, 14, 0.96);
+      backdrop-filter: blur(16px);
+      border-top: 1px solid var(--border-subtle);
+      padding: 10px 16px 14px;
+      display: flex; justify-content: space-around; align-items: center;
+    }
+    .nav-item {
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      color: var(--text-muted); font-size: 0.72rem; font-weight: 700; cursor: pointer;
+    }
+    .nav-item svg { width: 22px; height: 22px; stroke: var(--text-muted); }
+    .nav-item.active { color: var(--accent); }
+    .nav-item.active svg { stroke: var(--accent); }
+
+    .google-btn {
+      width: 100%; background: #ffffff; color: #1f1f1f;
+      border: 1px solid #747775; border-radius: 14px; padding: 12px;
+      font-weight: 700; font-size: 0.95rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 12px;
+      margin-bottom: 12px;
+    }
+    .google-btn img { width: 22px; height: 22px; }
+    
+    .profile-action-btn {
+      background: var(--surface); border: 1px solid var(--border);
+      color: #fff; padding: 14px 16px; border-radius: 14px;
+      font-weight: 700; display: flex; align-items: center; gap: 12px;
+      cursor: pointer; width: 100%; text-align: left; font-size: 0.9rem;
+    }
+    .profile-action-btn svg { width: 20px; height: 20px; stroke: var(--accent); }
+    .profile-action-btn.danger { border-color: rgba(239, 68, 68, 0.3); color: #ef4444; }
+    .profile-action-btn.danger svg { stroke: #ef4444; }
+
+    .sync-status-indicator {
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      font-size: 0.75rem; color: #10b981; margin-top: 10px; font-weight: 600;
+    }
+    .sync-dot {
+      width: 7px; height: 7px; border-radius: 50%; background: #10b981;
+      box-shadow: 0 0 8px #10b981;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="top-bar">
+    <div class="brand" onclick="switchTab('home')">
+      <div class="brand-logo">OTAKU</div>
+      <div class="brand-title">OTAKU <span>VAULT</span></div>
+    </div>
+    <div class="top-actions">
+      <div onclick="switchTab('watchlist')">
+        <svg fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
+      </div>
+      <div onclick="switchTab('profile')">
+        <svg fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+      </div>
+    </div>
+  </header>
+
+  <main class="container" id="main-view">
+    <div class="search-wrapper">
+      <div class="search-box">
+        <svg fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        <input type="text" id="search-input" placeholder="Search anime title, character, studio..." oninput="handleLiveSuggestions()">
+      </div>
+      <div class="suggestions-dropdown" id="search-suggestions"></div>
+    </div>
+
+    <div class="chips-label">Filter By Genre</div>
+    <div class="chips-row" id="genre-chips">
+      <button class="chip active" onclick="filterByGenre('', this)">All Genres</button>
+      <button class="chip" onclick="filterByGenre('Action', this)">Action</button>
+      <button class="chip" onclick="filterByGenre('Adventure', this)">Adventure</button>
+      <button class="chip" onclick="filterByGenre('Comedy', this)">Comedy</button>
+      <button class="chip" onclick="filterByGenre('Drama', this)">Drama</button>
+      <button class="chip" onclick="filterByGenre('Fantasy', this)">Fantasy</button>
+      <button class="chip" onclick="filterByGenre('Romance', this)">Romance</button>
+      <button class="chip" onclick="filterByGenre('Sci-Fi', this)">Sci-Fi</button>
+      <button class="chip" onclick="filterByGenre('Supernatural', this)">Supernatural</button>
+      <button class="chip" onclick="filterByGenre('Mystery', this)">Mystery</button>
+      <button class="chip" onclick="filterByGenre('Sports', this)">Sports</button>
+    </div>
+
+    <div class="hero-banner">
+      <div class="date-badge">
+        <div class="month" id="cur-month">NOV</div>
+        <div class="day" id="cur-day">5</div>
+      </div>
+      <div class="hero-content">
+        <div class="hero-tag">DISCOVER DAILY</div>
+        <div class="hero-title" id="greeting-txt">Welcome Explorer 👋</div>
+        <div class="hero-sub">Explore by genre and track your personal anime progress</div>
+      </div>
+    </div>
+
+    <div id="dynamic-section" style="display:none; margin-bottom: 24px;">
+      <div class="section-head">
+        <div class="section-title" id="dynamic-title">Results</div>
+      </div>
+      <div class="carousel-row" id="dynamic-row" style="flex-wrap: wrap; gap: 14px;"></div>
+    </div>
+
+    <div id="default-sections">
+      <div class="section-head">
+        <div class="section-title">Airing Now</div>
+      </div>
+      <div class="carousel-row" id="airing-row">
+        <div style="color:var(--text-muted); padding:20px;">Loading Airing Anime...</div>
+      </div>
+
+      <div class="section-head" style="margin-top:20px;">
+        <div class="section-title">All-Time Popular</div>
+      </div>
+      <div class="carousel-row" id="popular-row">
+        <div style="color:var(--text-muted); padding:20px;">Loading Popular Anime...</div>
+      </div>
+    </div>
+  </main>
+
+  <main class="container" id="watchlist-view" style="display:none;">
+    <div class="section-head">
+      <div class="section-title">My Vault Library</div>
+    </div>
+    
+    <div class="chips-row" style="margin-bottom:16px;">
+      <button class="chip active" id="tab-wl-all" onclick="filterWatchlistTab('ALL', this)">All</button>
+      <button class="chip" id="tab-wl-watching" onclick="filterWatchlistTab('WATCHING', this)">Watching</button>
+      <button class="chip" id="tab-wl-later" onclick="filterWatchlistTab('PLANNING', this)">Watch Later</button>
+      <button class="chip" id="tab-wl-watched" onclick="filterWatchlistTab('COMPLETED', this)">Watched</button>
+    </div>
+
+    <div class="carousel-row" id="watchlist-container" style="flex-wrap: wrap; gap: 14px;"></div>
+  </main>
+
+  <main class="container" id="profile-view" style="display:none;">
+    <div style="background:var(--card); border:1px solid var(--border); border-radius:20px; padding:26px 20px; text-align:center; margin-bottom:20px;">
+      <div id="prof-avatar-wrap" style="width:76px; height:76px; border-radius:50%; background:var(--accent-soft); border:2px solid var(--accent); margin:0 auto 12px; display:flex; align-items:center; justify-content:center; overflow:hidden;">
+        <svg fill="none" viewBox="0 0 24 24" stroke-width="2" style="width:36px; height:36px; stroke:var(--accent);"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+      </div>
+      <h2 id="prof-display-name" style="font-size:1.35rem; font-weight:800;">Guest Explorer</h2>
+      <p id="prof-email" style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;">Sign in with Gmail for Cloud Sync</p>
+      
+      <div id="sync-indicator" class="sync-status-indicator" style="display:none;">
+        <span class="sync-dot"></span> String-based Ultra-Light Sync Active
+      </div>
+
+      <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; margin-top:20px; padding-top:16px; border-top:1px solid var(--border-subtle);">
+        <div><h3 id="stat-total" style="font-size:1.2rem; font-weight:800; color:var(--accent);">0</h3><p style="font-size:0.68rem; color:var(--text-muted);">Total</p></div>
+        <div><h3 id="stat-watching" style="font-size:1.2rem; font-weight:800; color:var(--accent);">0</h3><p style="font-size:0.68rem; color:var(--text-muted);">Watching</p></div>
+        <div><h3 id="stat-watched" style="font-size:1.2rem; font-weight:800; color:var(--accent);">0</h3><p style="font-size:0.68rem; color:var(--text-muted);">Completed</p></div>
+        <div><h3 id="stat-eps" style="font-size:1.2rem; font-weight:800; color:var(--accent);">0</h3><p style="font-size:0.68rem; color:var(--text-muted);">Episodes</p></div>
+      </div>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:10px;">
+      <div id="google-auth-box">
+        <button class="google-btn" onclick="handleGoogleSignIn()">
+          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
+          <span>Sign in with Google Account</span>
+        </button>
+      </div>
+
+      <button id="logout-btn" class="profile-action-btn danger" onclick="handleCloudLogout()" style="display:none; margin-top:10px;">
+        <svg fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+        Log Out of Account
+      </button>
+    </div>
+  </main>
+
+  <nav class="bottom-nav">
+    <div class="nav-item active" id="nav-home" onclick="switchTab('home')">
+      <svg fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+      <div>Home</div>
+    </div>
+    <div class="nav-item" id="nav-watchlist" onclick="switchTab('watchlist')">
+      <svg fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
+      <div>Watchlist</div>
+    </div>
+    <div class="nav-item" id="nav-profile" onclick="switchTab('profile')">
+      <svg fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+      <div>Profile</div>
+    </div>
+  </nav>
+
+  <div class="modal-overlay" id="detail-modal">
+    <div class="modal-banner-wrap">
+      <img id="m-banner" class="modal-banner" src="" alt="Banner">
+      <div class="modal-banner-gradient"></div>
+      <div class="modal-nav-header">
+        <div class="modal-circle-btn" onclick="closeModal()">
+          <svg fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+        </div>
+        <div class="modal-circle-btn" onclick="shareCurrentAnime()">
+          <svg fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+        </div>
+      </div>
+    </div>
+    
+    <div class="modal-body">
+      <h2 id="m-title" class="modal-title"></h2>
+      <div id="m-tags" class="modal-tags"></div>
+      <div id="m-genres" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px;"></div>
+
+      <div class="modal-actions">
+        <div class="action-tile" id="m-act-watching" onclick="toggleTrackingCategory('WATCHING')">
+          <svg fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+          <p>Watching</p>
+        </div>
+        <div class="action-tile" id="m-act-wl" onclick="toggleTrackingCategory('PLANNING')">
+          <svg fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
+          <p>Watch Later</p>
+        </div>
+        <div class="action-tile" id="m-act-wat" onclick="toggleTrackingCategory('COMPLETED')">
+          <svg fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+          <p>Watched</p>
+        </div>
+        <div class="action-tile" id="m-act-tr" onclick="openTrailer()">
+          <svg fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <p>Trailer</p>
+        </div>
+      </div>
+
+      <div class="ep-tracker-box">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span style="font-size:0.85rem; font-weight:700;">Episode Progress</span>
+          <span id="m-ep-counter" class="ep-counter-badge" onclick="promptCustomEpisode()" title="Click to enter episode manually">
+            0 / 0 Ep (Tap to edit)
+          </span>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <button class="ep-tracker-btn" onclick="adjustActiveEp(-1)">-1 Episode</button>
+          <button class="ep-tracker-btn" style="background:var(--accent); color:#000;" onclick="adjustActiveEp(1)">+1 Episode</button>
+        </div>
+      </div>
+
+      <div style="font-size:0.88rem; font-weight:800; color:var(--accent); margin-bottom:8px;">SYNOPSIS</div>
+      <div id="m-desc" style="font-size:0.88rem; line-height:1.65; color:#d6d0c4; margin-bottom:24px;"></div>
+
+      <div style="font-size:0.88rem; font-weight:800; color:var(--accent); margin-bottom:12px;">ANIME INFORMATION</div>
+      <div style="display:flex; flex-direction:column; gap:10px; font-size:0.85rem;">
+        <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-subtle); padding-bottom:8px;"><span style="color:var(--text-muted);">Studio</span><span id="m-studio" style="font-weight:700;">-</span></div>
+        <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-subtle); padding-bottom:8px;"><span style="color:var(--text-muted);">Format</span><span id="m-format" style="font-weight:700;">TV</span></div>
+        <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-subtle); padding-bottom:8px;"><span style="color:var(--text-muted);">Status</span><span id="m-status" style="font-weight:700;">Finished</span></div>
+        <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-subtle); padding-bottom:8px;"><span style="color:var(--text-muted);">Score</span><span id="m-score" style="font-weight:700;">N/A</span></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let activeUser = null;
+    let userLibrary = [];
+    let currentWlTab = 'ALL';
+    let animeCache = {};
+    let activeAnime = null;
+    let suggestTimer = null;
+
+    // String converter: Watch / unwatch / watched to Internal status
+    function stringToInternal(str) {
+      if (!str) return 'PLANNING';
+      const s = String(str).toLowerCase();
+      if (s === 'watch' || s === 'watching') return 'WATCHING';
+      if (s === 'watched' || s === 'completed') return 'COMPLETED';
+      return 'PLANNING'; // unwatch
+    }
+
+    function internalToString(status) {
+      if (status === 'WATCHING') return 'watch';
+      if (status === 'COMPLETED') return 'watched';
+      return 'unwatch';
+    }
+
+    function getLocalBackup() {
+      return JSON.parse(localStorage.getItem('ov_offline_library') || '[]');
+    }
+
+    // Auto sync using pure string format
+    async function persistLibrary(list) {
+      userLibrary = list;
+      localStorage.setItem('ov_offline_library', JSON.stringify(list));
+      
+      if (activeUser && window.otakuFirebase) {
+        const stringMap = {};
+        list.forEach(item => {
+          stringMap[item.id] = {
+            status: internalToString(item.status),
+            episode: String(item.episodes_watched || "0")
+          };
+        });
+        window.otakuFirebase.saveStringMap(activeUser, stringMap);
+      }
+      updateCounts();
+    }
+
+    function updateGreeting() {
+      const now = new Date();
+      const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+      document.getElementById('cur-month').innerText = months[now.getMonth()];
+      document.getElementById('cur-day').innerText = now.getDate();
+
+      const hours = now.getHours();
+      let greet = 'Night vibes';
+      if (hours >= 5 && hours < 12) greet = 'Good morning';
+      else if (hours >= 12 && hours < 17) greet = 'Good afternoon';
+      else if (hours >= 17 && hours < 22) greet = 'Good evening';
+
+      const displayName = activeUser?.displayName || 'Explorer';
+      document.getElementById('greeting-txt').innerText = `${greet}, ${displayName} 👋`;
+    }
+
+    async function hydrateFromStringMap(stringMap) {
+      const ids = Object.keys(stringMap).map(id => parseInt(id));
+      if (!ids.length) return [];
+
+      const query = `
+        query ($ids: [Int]) {
+          Page(page: 1, perPage: 50) {
+            media(id_in: $ids, type: ANIME) {
+              id
+              title { english romaji }
+              coverImage { large extraLarge }
+              bannerImage
+              averageScore
+              format
+              episodes
+              status
+              description(asHtml: false)
+              genres
+              startDate { year }
+              trailer { id site }
+              studios(isMain: true) { nodes { name } }
+            }
+          }
+        }
+      `;
+      try {
+        const res = await fetch('https://graphql.anilist.co', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query, variables: { ids } })
+        });
+        const d = await res.json();
+        const mediaList = d.data?.Page?.media || [];
+        
+        return mediaList.map(item => {
+          animeCache[item.id] = item;
+          const userMeta = stringMap[item.id];
+          return {
+            ...item,
+            status: stringToInternal(userMeta?.status),
+            episodes_watched: parseInt(userMeta?.episode || "0") || 0
+          };
+        });
+      } catch (err) {
+        console.error("Hydration Error:", err);
+        return getLocalBackup();
+      }
+    }
+
+    async function refreshUserUI() {
+      if (activeUser) {
+        document.getElementById('prof-display-name').innerText = activeUser.displayName || 'Google User';
+        document.getElementById('prof-email').innerText = activeUser.email || '';
+        document.getElementById('google-auth-box').style.display = 'none';
+        document.getElementById('logout-btn').style.display = 'flex';
+        document.getElementById('sync-indicator').style.display = 'flex';
+        if (activeUser.photoURL) {
+          document.getElementById('prof-avatar-wrap').innerHTML = `<img src="${activeUser.photoURL}" style="width:100%; height:100%; object-fit:cover;">`;
+        }
+        
+        const stringMap = await window.otakuFirebase.loadStringMap(activeUser);
+        if (stringMap && Object.keys(stringMap).length > 0) {
+          userLibrary = await hydrateFromStringMap(stringMap);
+          localStorage.setItem('ov_offline_library', JSON.stringify(userLibrary));
+        } else {
+          userLibrary = getLocalBackup();
+          if (userLibrary.length > 0) {
+            persistLibrary(userLibrary);
+          }
+        }
+      } else {
+        document.getElementById('prof-display-name').innerText = 'Guest Explorer';
+        document.getElementById('prof-email').innerText = 'Sign in with Gmail for Cloud Sync';
+        document.getElementById('google-auth-box').style.display = 'block';
+        document.getElementById('logout-btn').style.display = 'none';
+        document.getElementById('sync-indicator').style.display = 'none';
+        document.getElementById('prof-avatar-wrap').innerHTML = `<svg fill="none" viewBox="0 0 24 24" stroke-width="2" style="width:36px; height:36px; stroke:var(--accent);"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>`;
+        userLibrary = getLocalBackup();
+      }
+      updateGreeting();
+      updateCounts();
+    }
+
+    async function handleGoogleSignIn() {
+      try {
+        const user = await window.otakuFirebase.loginGoogle();
+        if (user) {
+          activeUser = user;
+          await refreshUserUI();
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Google Sign-In Error. Check Authorized Domains.');
+      }
+    }
+
+    async function handleCloudLogout() {
+      if (confirm('Log out from this Google account?')) {
+        await window.otakuFirebase.logout();
+        activeUser = null;
+        await refreshUserUI();
+      }
+    }
+
+    async function queryAniList(variables) {
+      const query = `
+        query ($search: String, $sort: [MediaSort], $status: MediaStatus, $genre: String) {
+          Page(page: 1, perPage: 16) {
+            media(search: $search, sort: $sort, status: $status, genre: $genre, type: ANIME, isAdult: false) {
+              id
+              title { english romaji }
+              coverImage { large extraLarge }
+              bannerImage
+              averageScore
+              format
+              episodes
+              status
+              description(asHtml: false)
+              genres
+              startDate { year }
+              trailer { id site }
+              studios(isMain: true) { nodes { name } }
+            }
+          }
+        }
+      `;
+      const res = await fetch('https://graphql.anilist.co', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, variables })
+      });
+      const data = await res.json();
+      const list = data.data?.Page?.media || [];
+      list.forEach(item => { animeCache[item.id] = item; });
+      return list;
+    }
+
+    function createCard(item) {
+      const title = item.title?.english || item.title?.romaji || 'Untitled';
+      const cleanTitle = title.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+      const img = item.coverImage?.extraLarge || item.coverImage?.large || '';
+      const score = item.averageScore ? `⭐ ${(item.averageScore / 10).toFixed(1)}` : 'N/A';
+      const year = item.startDate?.year || '';
+      const primaryGenre = (item.genres && item.genres[0]) ? item.genres[0] : 'Anime';
+      
+      const isSaved = userLibrary.some(x => x.id === item.id);
+
+      const card = document.createElement('div');
+      card.className = 'media-card';
+      card.innerHTML = `
+        <img class="media-thumb" src="${img}" alt="${cleanTitle}" loading="lazy">
+        <div class="card-actions-float">
+          <div class="icon-circle-btn ${isSaved ? 'saved' : ''}" onclick="quickSave(event, ${item.id})">
+            <svg fill="none" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
+          </div>
+        </div>
+        <div class="card-meta-box">
+          <div class="genre-tag-inline">${primaryGenre}</div>
+          <div class="media-title" title="${cleanTitle}">${title}</div>
+          <div class="media-subinfo"><span>${year}</span><span style="color:var(--accent); font-weight:700;">${score}</span></div>
+        </div>
+      `;
+      card.onclick = (e) => {
+        if (!e.target.closest('.icon-circle-btn')) openModal(item);
+      };
+      return card;
+    }
+
+    async function loadCarousels() {
+      try {
+        const airing = await queryAniList({ status: 'RELEASING', sort: ['POPULARITY_DESC'] });
+        const airingRow = document.getElementById('airing-row');
+        airingRow.innerHTML = '';
+        airing.forEach(item => airingRow.appendChild(createCard(item)));
+
+        const popular = await queryAniList({ sort: ['POPULARITY_DESC'] });
+        const popRow = document.getElementById('popular-row');
+        popRow.innerHTML = '';
+        popular.forEach(item => popRow.appendChild(createCard(item)));
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function handleLiveSuggestions() {
+      clearTimeout(suggestTimer);
+      const q = document.getElementById('search-input').value.trim();
+      const drop = document.getElementById('search-suggestions');
+
+      if (!q || q.length < 2) {
+        drop.style.display = 'none';
+        drop.innerHTML = '';
+        return;
+      }
+
+      suggestTimer = setTimeout(async () => {
+        const list = await queryAniList({ search: q });
+        if (!list || list.length === 0) {
+          drop.style.display = 'none';
+          return;
+        }
+        drop.innerHTML = list.slice(0, 6).map(item => {
+          const t = item.title?.english || item.title?.romaji || 'Untitled';
+          const pic = item.coverImage?.large || '';
+          const yr = item.startDate?.year || '';
+          const sc = item.averageScore ? `⭐ ${(item.averageScore / 10).toFixed(1)}` : '';
+          return `
+            <div class="suggestion-item" onclick="selectSuggestion(${item.id})">
+              <img src="${pic}" alt="${t}">
+              <div style="overflow:hidden;">
+                <div class="suggestion-title">${t}</div>
+                <div class="suggestion-sub">${yr} • ${sc} • ${item.format || 'TV'}</div>
+              </div>
+            </div>
+          `;
+        }).join('');
+        drop.style.display = 'block';
+      }, 250);
+    }
+
+    function selectSuggestion(id) {
+      document.getElementById('search-suggestions').style.display = 'none';
+      document.getElementById('search-input').value = '';
+      const item = animeCache[id];
+      if (item) openModal(item);
+    }
+
+    async function filterByGenre(genre, btn) {
+      document.querySelectorAll('#genre-chips .chip').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+
+      const dynSec = document.getElementById('dynamic-section');
+      const dynRow = document.getElementById('dynamic-row');
+      const dynTitle = document.getElementById('dynamic-title');
+      const defSec = document.getElementById('default-sections');
+
+      if (!genre) {
+        dynSec.style.display = 'none';
+        defSec.style.display = 'block';
+        return;
+      }
+      defSec.style.display = 'none';
+      dynSec.style.display = 'block';
+      dynTitle.innerText = `${genre} Anime`;
+      dynRow.innerHTML = '<div style="color:var(--text-muted); padding:20px;">Fetching...</div>';
+
+      const items = await queryAniList({ genre, sort: ['POPULARITY_DESC'] });
+      dynRow.innerHTML = '';
+      items.forEach(item => dynRow.appendChild(createCard(item)));
+    }
+
+    function openModal(item) {
+      activeAnime = item;
+      const title = item.title?.english || item.title?.romaji || 'Untitled';
+      document.getElementById('m-title').innerText = title;
+      document.getElementById('m-banner').src = item.bannerImage || item.coverImage?.extraLarge || item.coverImage?.large;
+      document.getElementById('m-tags').innerText = `${item.startDate?.year || ''} • ${item.format || 'TV'}`;
+      
+      const genreBox = document.getElementById('m-genres');
+      genreBox.innerHTML = (item.genres || []).map(g => `<span style="background:var(--surface); border:1px solid var(--border); color:var(--accent); font-size:0.72rem; font-weight:700; padding:4px 10px; border-radius:12px;">${g}</span>`).join('');
+
+      document.getElementById('m-desc').innerText = item.description ? item.description.replace(/<[^>]*>?/gm, '') : 'No synopsis available.';
+      document.getElementById('m-studio').innerText = item.studios?.nodes?.[0]?.name || 'Unknown';
+      document.getElementById('m-format').innerText = item.format || 'TV';
+      document.getElementById('m-status').innerText = item.status || 'Finished';
+      document.getElementById('m-score').innerText = item.averageScore ? `${(item.averageScore / 10).toFixed(1)} / 10` : 'N/A';
+
+      updateModalUI();
+      const m = document.getElementById('detail-modal');
+      m.style.display = 'flex';
+      m.scrollTop = 0;
+    }
+
+    function closeModal() {
+      document.getElementById('detail-modal').style.display = 'none';
+    }
+
+    function updateModalUI() {
+      if (!activeAnime) return;
+      const entry = userLibrary.find(x => x.id === activeAnime.id);
+
+      document.getElementById('m-act-watching').classList.toggle('active', entry?.status === 'WATCHING');
+      document.getElementById('m-act-wl').classList.toggle('active', entry?.status === 'PLANNING');
+      document.getElementById('m-act-wat').classList.toggle('active', entry?.status === 'COMPLETED');
+
+      const watched = entry?.episodes_watched || 0;
+      const total = activeAnime.episodes || '?';
+      document.getElementById('m-ep-counter').innerText = `${watched} / ${total} Ep (Tap to edit)`;
+    }
+
+    async function toggleTrackingCategory(targetCategory) {
+      const idx = userLibrary.findIndex(x => x.id === activeAnime.id);
+
+      if (idx > -1) {
+        if (userLibrary[idx].status === targetCategory) {
+          userLibrary.splice(idx, 1);
+        } else {
+          userLibrary[idx].status = targetCategory;
+          if (targetCategory === 'COMPLETED' && activeAnime.episodes) {
+            userLibrary[idx].episodes_watched = activeAnime.episodes;
+          }
+        }
+      } else {
+        const fullEps = (targetCategory === 'COMPLETED' && activeAnime.episodes) ? activeAnime.episodes : 0;
+        userLibrary.push({ ...activeAnime, status: targetCategory, episodes_watched: fullEps });
+      }
+
+      await persistLibrary(userLibrary);
+      updateModalUI();
+    }
+
+    async function promptCustomEpisode() {
+      if (!activeAnime) return;
+      let entry = userLibrary.find(x => x.id === activeAnime.id);
+      const total = activeAnime.episodes || 9999;
+      const current = entry?.episodes_watched || 0;
+
+      const input = prompt(`Enter watched episode number (Max ${activeAnime.episodes || 'any'}):`, current);
+      if (input === null) return;
+
+      const num = parseInt(input);
+      if (isNaN(num) || num < 0) {
+        alert("Please enter a valid number.");
+        return;
+      }
+
+      const clamped = Math.min(total, num);
+
+      if (!entry) {
+        entry = { ...activeAnime, status: 'WATCHING', episodes_watched: clamped };
+        userLibrary.push(entry);
+      } else {
+        entry.episodes_watched = clamped;
+        if (activeAnime.episodes && clamped >= activeAnime.episodes) {
+          entry.status = 'COMPLETED';
+        } else {
+          entry.status = 'WATCHING';
+        }
+      }
+
+      await persistLibrary(userLibrary);
+      updateModalUI();
+    }
+
+    async function adjustActiveEp(delta) {
+      let entry = userLibrary.find(x => x.id === activeAnime.id);
+
+      if (!entry) {
+        entry = { ...activeAnime, status: 'WATCHING', episodes_watched: 0 };
+        userLibrary.push(entry);
+      }
+
+      entry.episodes_watched = Math.max(0, (entry.episodes_watched || 0) + delta);
+      if (activeAnime.episodes && entry.episodes_watched >= activeAnime.episodes) {
+        entry.status = 'COMPLETED';
+      } else {
+        entry.status = 'WATCHING';
+      }
+
+      await persistLibrary(userLibrary);
+      updateModalUI();
+    }
+
+    function openTrailer() {
+      if (activeAnime?.trailer?.site === 'youtube') {
+        window.open(`https://www.youtube.com/watch?v=${activeAnime.trailer.id}`, '_blank');
+      } else {
+        alert('Trailer not available for this anime.');
+      }
+    }
+
+    function shareCurrentAnime() {
+      const title = activeAnime?.title?.english || activeAnime?.title?.romaji || 'Anime';
+      if (navigator.share) {
+        navigator.share({ title: `Otaku Vault - ${title}`, url: window.location.href }).catch(() => {});
+      } else {
+        navigator.clipboard.writeText(window.location.href);
+        alert('Anime link copied to clipboard!');
+      }
+    }
+
+    async function quickSave(e, id) {
+      e.stopPropagation();
+      const target = animeCache[id] || { id };
+      const idx = userLibrary.findIndex(x => x.id === id);
+
+      if (idx > -1) {
+        userLibrary.splice(idx, 1);
+        e.currentTarget.classList.remove('saved');
+      } else {
+        userLibrary.push({ ...target, status: 'PLANNING', episodes_watched: 0 });
+        e.currentTarget.classList.add('saved');
+      }
+      await persistLibrary(userLibrary);
+    }
+
+    function updateCounts() {
+      document.getElementById('stat-total').innerText = userLibrary.length;
+      document.getElementById('stat-watching').innerText = userLibrary.filter(x => x.status === 'WATCHING').length;
+      document.getElementById('stat-watched').innerText = userLibrary.filter(x => x.status === 'COMPLETED').length;
+      document.getElementById('stat-eps').innerText = userLibrary.reduce((acc, c) => acc + (c.episodes_watched || 0), 0);
+    }
+
+    function filterWatchlistTab(tab, btn) {
+      currentWlTab = tab;
+      document.querySelectorAll('#watchlist-view .chip').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      renderWatchlist();
+    }
+
+    function renderWatchlist() {
+      const c = document.getElementById('watchlist-container');
+      const filtered = userLibrary.filter(item => {
+        if (currentWlTab === 'ALL') return true;
+        return item.status === currentWlTab;
+      });
+
+      c.innerHTML = filtered.length ? '' : `<div style="color:var(--text-muted); padding:20px;">No anime found in this category.</div>`;
+      filtered.forEach(item => c.appendChild(createCard(item)));
+    }
+
+    function switchTab(t) {
+      document.getElementById('main-view').style.display = t === 'home' ? 'block' : 'none';
+      document.getElementById('watchlist-view').style.display = t === 'watchlist' ? 'block' : 'none';
+      document.getElementById('profile-view').style.display = t === 'profile' ? 'block' : 'none';
+
+      document.getElementById('nav-home').classList.toggle('active', t === 'home');
+      document.getElementById('nav-watchlist').classList.toggle('active', t === 'watchlist');
+      document.getElementById('nav-profile').classList.toggle('active', t === 'profile');
+
+      if (t === 'watchlist') renderWatchlist();
+    }
+
+    window.addEventListener("firebase-initialized", () => {
+      window.otakuFirebase.onAuth(async (user) => {
+        activeUser = user;
+        await refreshUserUI();
+      });
+    });
+
+    refreshUserUI();
+    loadCarousels();
+  </script>
+</body>
+</html>

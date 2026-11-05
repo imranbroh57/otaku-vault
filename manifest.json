@@ -1,21 +1,23 @@
 {
+  "id": "/movievaultapp/",
   "name": "Otaku Vault",
   "short_name": "OtakuVault",
   "description": "Your ultimate personal anime vault & tracker",
-  "start_url": "./index.html",
+  "start_url": "https://imranbroh57.github.io/movievaultapp/index.html",
+  "scope": "https://imranbroh57.github.io/movievaultapp/",
   "display": "standalone",
   "background_color": "#0c0b0a",
   "theme_color": "#0c0b0a",
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "icon.png?v=2",
+      "src": "icon.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "icon.png?v=2",
+      "src": "icon.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"

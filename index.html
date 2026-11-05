@@ -109,19 +109,25 @@
       position: sticky; top: 0; z-index: 80;
       background: rgba(12, 11, 10, 0.94);
       backdrop-filter: blur(16px);
-      padding: 14px 18px;
+      padding: 12px 18px;
       display: flex; justify-content: space-between; align-items: center;
       border-bottom: 1px solid var(--border-subtle);
     }
-    .brand { display: flex; align-items: center; gap: 10px; cursor: pointer; }
-    .brand-logo {
-      background: linear-gradient(135deg, #2a2210, #141108);
-      border: 1px solid var(--accent);
-      color: var(--accent);
-      padding: 4px 8px; border-radius: 7px; font-weight: 800; font-size: 0.75rem;
+    .brand { display: flex; align-items: center; gap: 12px; cursor: pointer; }
+    .brand-icon-circle {
+      width: 36px; height: 36px; border-radius: 50%;
+      border: 1.8px solid var(--accent);
+      object-fit: cover;
+      box-shadow: 0 0 10px rgba(245, 197, 24, 0.25);
+      flex-shrink: 0;
     }
-    .brand-title { font-size: 1.15rem; font-weight: 800; }
-    .brand-title span { color: var(--accent); }
+    .brand-title {
+      font-size: 1.2rem; font-weight: 800; letter-spacing: 0.5px;
+    }
+    .brand-title span {
+      color: var(--accent);
+      text-shadow: 0 0 12px rgba(245, 197, 24, 0.35);
+    }
     .top-actions { display: flex; gap: 16px; align-items: center; }
     .top-actions svg { width: 22px; height: 22px; stroke: var(--text-muted); cursor: pointer; }
 
@@ -257,7 +263,6 @@
     .icon-circle-btn.saved { background: var(--accent); border-color: var(--accent); }
     .icon-circle-btn.saved svg { stroke: #0c0b0a; fill: #0c0b0a; }
 
-    /* Floating Hindi Badge on Card */
     .hindi-ribbon {
       position: absolute; top: 8px; left: 8px; z-index: 2;
       background: var(--hindi-badge); color: #fff;
@@ -419,9 +424,10 @@
 </head>
 <body>
 
+  <!-- Top Bar with Circular Anime Icon (Design 1) -->
   <header class="top-bar">
     <div class="brand" onclick="switchTab('home')">
-      <div class="brand-logo">OTAKU</div>
+      <img src="icon.png" class="brand-icon-circle" alt="Otaku Vault Logo">
       <div class="brand-title">OTAKU <span>VAULT</span></div>
     </div>
     <div class="top-actions">
@@ -609,7 +615,7 @@
       <h2 id="m-title" class="modal-title"></h2>
       <div id="m-tags" class="modal-tags"></div>
 
-      <!-- New Audio / Available Languages Section -->
+      <!-- Audio / Available Languages Section -->
       <div style="font-size:0.75rem; font-weight:800; color:var(--accent); margin-bottom:6px; letter-spacing:0.5px;">AUDIO & DUBS AVAILABLE</div>
       <div class="lang-capsules-wrap" id="m-audio-langs"></div>
 
@@ -684,7 +690,6 @@
     let activeAnime = null;
     let suggestTimer = null;
 
-    // Known anime titles that have official Hindi dubs (Crunchyroll India, Netflix, Muse India)
     const HINDI_DUBBED_TITLES = [
       "jujutsu kaisen", "demon slayer", "chainsaw man", "solo leveling", 
       "naruto", "naruto shippuden", "boruto", "one punch man", "dragon ball", 
@@ -702,7 +707,6 @@
       const inList = HINDI_DUBBED_TITLES.some(k => eng.includes(k) || rom.includes(k));
       if (inList) return true;
 
-      // Check external links (Crunchyroll, Netflix)
       if (item.externalLinks && Array.isArray(item.externalLinks)) {
         return item.externalLinks.some(l => (l.site && l.site.toLowerCase().includes("crunchyroll")) || (l.language && l.language.toLowerCase() === "hindi"));
       }
@@ -1171,7 +1175,6 @@
       document.getElementById('m-banner').src = item.bannerImage || item.coverImage?.extraLarge || item.coverImage?.large;
       document.getElementById('m-tags').innerText = `${item.startDate?.year || ''} • ${item.format || 'TV'}`;
       
-      // Render Audio / Available Languages
       const langBox = document.getElementById('m-audio-langs');
       const tracks = getAvailableAudioTracks(item);
       langBox.innerHTML = tracks.map(tr => {

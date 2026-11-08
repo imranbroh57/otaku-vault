@@ -12,13 +12,19 @@
   <link rel="apple-touch-icon" href="icon.png">
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.gstatic.com">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   
   <!-- Firebase SDKs -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    import { 
+      getAuth, 
+      createUserWithEmailAndPassword, 
+      signInWithEmailAndPassword, 
+      signOut, 
+      onAuthStateChanged 
+    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
     import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -31,56 +37,47 @@
       measurementId: "G-HYY3C1ECR1"
     };
 
-    let app, auth, db, provider;
+    let app, auth, db;
     try {
       app = initializeApp(firebaseConfig);
       auth = getAuth(app);
       db = getFirestore(app);
-      provider = new GoogleAuthProvider();
     } catch(err) {
       console.error("Firebase init error:", err);
     }
 
     window.otakuFirebase = {
-      loginGoogle: async () => {
-        try {
-          const res = await signInWithPopup(auth, provider);
-          return res.user;
-        } catch(err) {
-          console.error("Google Auth error:", err);
-          throw err;
-        }
+      registerEmail: async (email, pass) => {
+        const cred = await createUserWithEmailAndPassword(auth, email, pass);
+        return cred.user;
+      },
+      loginEmail: async (email, pass) => {
+        const cred = await signInWithEmailAndPassword(auth, email, pass);
+        return cred.user;
       },
       logout: async () => {
         if (auth) await signOut(auth);
       },
       onAuth: (callback) => {
-        if (auth) {
-          onAuthStateChanged(auth, callback);
-        }
+        if (auth) onAuthStateChanged(auth, callback);
       },
-      saveStringMap: async (user, stringMap) => {
-        if (!user || !db) return;
-        try {
-          await setDoc(doc(db, "users", user.uid), {
-            vault: stringMap,
-            updatedAt: new Date().toISOString()
-          }, { merge: true });
-        } catch(err) {
-          console.error("Firestore Auto Save Error:", err);
-        }
+      saveUserVault: async (uid, vaultData) => {
+        if (!db || !uid) return;
+        await setDoc(doc(db, "users", uid), { vault: vaultData, updatedAt: new Date().toISOString() }, { merge: true });
       },
-      loadStringMap: async (user) => {
-        if (!user || !db) return null;
-        try {
-          const snap = await getDoc(doc(db, "users", user.uid));
-          if (snap.exists() && snap.data().vault) {
-            return snap.data().vault;
-          }
-        } catch(err) {
-          console.error("Firestore Load Error:", err);
-        }
-        return null;
+      loadUserVault: async (uid) => {
+        if (!db || !uid) return null;
+        const snap = await getDoc(doc(db, "users", uid));
+        return snap.exists() ? snap.data().vault : null;
+      },
+      saveBySyncKey: async (key, vaultData) => {
+        if (!db || !key) return;
+        await setDoc(doc(db, "sync_vaults", key), { vault: vaultData, updatedAt: new Date().toISOString() }, { merge: true });
+      },
+      loadBySyncKey: async (key) => {
+        if (!db || !key) return null;
+        const snap = await getDoc(doc(db, "sync_vaults", key));
+        return snap.exists() ? snap.data().vault : null;
       }
     };
 
@@ -103,7 +100,7 @@
       --hindi-bg: rgba(255, 87, 34, 0.15);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; }
-    body { background-color: var(--bg); color: var(--text); min-height: 100vh; padding-bottom: 85px; overflow-x: hidden; }
+    body { background-color: var(--bg); color: var(--text); min-height: 100vh; padding-bottom: 95px; overflow-x: hidden; }
 
     .top-bar {
       position: sticky; top: 0; z-index: 80;
@@ -121,13 +118,8 @@
       box-shadow: 0 0 10px rgba(245, 197, 24, 0.25);
       flex-shrink: 0;
     }
-    .brand-title {
-      font-size: 1.2rem; font-weight: 800; letter-spacing: 0.5px;
-    }
-    .brand-title span {
-      color: var(--accent);
-      text-shadow: 0 0 12px rgba(245, 197, 24, 0.35);
-    }
+    .brand-title { font-size: 1.2rem; font-weight: 800; letter-spacing: 0.5px; }
+    .brand-title span { color: var(--accent); text-shadow: 0 0 12px rgba(245, 197, 24, 0.35); }
     .top-actions { display: flex; gap: 16px; align-items: center; }
     .top-actions svg { width: 22px; height: 22px; stroke: var(--text-muted); cursor: pointer; }
 
@@ -135,69 +127,33 @@
 
     .search-wrapper { position: relative; margin-bottom: 14px; }
     .search-box {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 12px 14px;
-      display: flex; align-items: center; gap: 10px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+      padding: 12px 14px; display: flex; align-items: center; gap: 10px;
     }
     .search-box svg { width: 18px; height: 18px; stroke: var(--text-muted); flex-shrink: 0; }
-    .search-box input {
-      flex: 1; background: transparent; border: none; outline: none;
-      color: #fff; font-size: 0.92rem;
-    }
+    .search-box input { flex: 1; background: transparent; border: none; outline: none; color: #fff; font-size: 0.92rem; }
     .suggestions-dropdown {
       position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 100;
       background: var(--card); border: 1px solid var(--border); border-radius: 14px;
       max-height: 280px; overflow-y: auto; display: none; box-shadow: 0 10px 25px rgba(0,0,0,0.8);
     }
-    .suggestion-item {
-      display: flex; align-items: center; gap: 12px; padding: 10px 14px;
-      border-bottom: 1px solid var(--border-subtle); cursor: pointer;
-    }
+    .suggestion-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--border-subtle); cursor: pointer; }
     .suggestion-item:last-child { border-bottom: none; }
     .suggestion-item img { width: 36px; height: 48px; object-fit: cover; border-radius: 6px; }
     .suggestion-title { font-size: 0.85rem; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .suggestion-sub { font-size: 0.72rem; color: var(--text-muted); }
 
-    .schedule-bar {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 10px 12px;
-      margin-bottom: 16px;
-    }
-    .sched-head {
-      display: flex; justify-content: space-between; align-items: center;
-      font-size: 0.72rem; font-weight: 800; color: var(--accent); letter-spacing: 1px; margin-bottom: 8px;
-    }
-    .sched-days-wrap {
-      display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none;
-    }
+    .schedule-bar { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 10px 12px; margin-bottom: 16px; }
+    .sched-head { display: flex; justify-content: space-between; align-items: center; font-size: 0.72rem; font-weight: 800; color: var(--accent); letter-spacing: 1px; margin-bottom: 8px; }
+    .sched-days-wrap { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
     .sched-days-wrap::-webkit-scrollbar { display: none; }
-    .day-pill {
-      flex: 1; min-width: 46px; text-align: center; padding: 6px 4px;
-      background: var(--card); border: 1px solid var(--border-subtle);
-      border-radius: 10px; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); cursor: pointer;
-    }
-    .day-pill.active {
-      background: var(--accent); color: #000; border-color: var(--accent);
-    }
+    .day-pill { flex: 1; min-width: 46px; text-align: center; padding: 6px 4px; background: var(--card); border: 1px solid var(--border-subtle); border-radius: 10px; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); cursor: pointer; }
+    .day-pill.active { background: var(--accent); color: #000; border-color: var(--accent); }
 
-    .chips-label {
-      font-size: 0.7rem; font-weight: 800; color: var(--text-muted);
-      letter-spacing: 1px; margin-bottom: 8px; text-transform: uppercase;
-      display: flex; justify-content: space-between; align-items: center;
-    }
-    .chips-row {
-      display: flex; gap: 8px; overflow-x: auto; padding-bottom: 12px; scrollbar-width: none;
-    }
+    .chips-label { font-size: 0.7rem; font-weight: 800; color: var(--text-muted); letter-spacing: 1px; margin-bottom: 8px; text-transform: uppercase; }
+    .chips-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 12px; scrollbar-width: none; }
     .chips-row::-webkit-scrollbar { display: none; }
-    .chip {
-      background: var(--surface); border: 1px solid var(--border);
-      color: var(--text-muted); padding: 7px 15px; border-radius: 20px;
-      font-size: 0.8rem; font-weight: 700; white-space: nowrap; cursor: pointer;
-    }
+    .chip { background: var(--surface); border: 1px solid var(--border); color: var(--text-muted); padding: 7px 15px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; white-space: nowrap; cursor: pointer; }
     .chip.active { background: var(--accent); color: #0c0b0a; border-color: var(--accent); }
     .chip.special { border-color: rgba(245, 197, 24, 0.4); color: #fff; }
     .chip.hindi { border-color: var(--hindi-badge); color: #ffab91; }
@@ -205,227 +161,104 @@
     .hero-banner {
       position: relative;
       background: linear-gradient(135deg, rgba(245, 197, 24, 0.12), rgba(20, 18, 14, 0.95)), url('https://images.unsplash.com/photo-1578632767115-351597cf2477?w=800&auto=format&fit=crop') center/cover;
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 24px 20px;
-      margin-bottom: 24px;
-      overflow: hidden;
+      border: 1px solid var(--border); border-radius: 20px; padding: 24px 20px; margin-bottom: 24px; overflow: hidden;
     }
-    .hero-banner::after {
-      content: ''; position: absolute; inset: 0;
-      background: linear-gradient(180deg, rgba(12,11,10,0.15) 0%, rgba(12,11,10,0.95) 100%);
-      z-index: 1;
-    }
+    .hero-banner::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(12,11,10,0.15) 0%, rgba(12,11,10,0.95) 100%); z-index: 1; }
     .hero-content { position: relative; z-index: 2; max-width: 80%; }
     .hero-tag { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent); font-weight: 800; margin-bottom: 6px; }
     .hero-title { font-size: 1.4rem; font-weight: 800; line-height: 1.25; margin-bottom: 4px; }
     .hero-sub { font-size: 0.82rem; color: var(--text-muted); }
 
-    .date-badge {
-      position: absolute; top: 16px; right: 16px; z-index: 2;
-      background: rgba(21, 20, 18, 0.88); border: 1px solid var(--border);
-      border-radius: 12px; padding: 6px 12px; text-align: center;
-    }
+    .date-badge { position: absolute; top: 16px; right: 16px; z-index: 2; background: rgba(21, 20, 18, 0.88); border: 1px solid var(--border); border-radius: 12px; padding: 6px 12px; text-align: center; }
     .date-badge .month { font-size: 0.65rem; color: var(--accent); font-weight: 800; }
     .date-badge .day { font-size: 1.15rem; font-weight: 800; color: #fff; }
 
-    .section-head {
-      display: flex; justify-content: space-between; align-items: center;
-      margin-bottom: 12px; margin-top: 10px;
-    }
+    .section-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; margin-top: 10px; }
     .section-title { font-size: 1.15rem; font-weight: 800; }
-    .carousel-row {
-      display: flex; gap: 14px; overflow-x: auto; padding-bottom: 12px; scrollbar-width: none;
-    }
+    .carousel-row { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 12px; scrollbar-width: none; }
     .carousel-row::-webkit-scrollbar { display: none; }
 
-    .media-card {
-      flex: 0 0 145px;
-      background: var(--card);
-      border: 1px solid var(--border-subtle);
-      border-radius: 16px;
-      overflow: hidden;
-      cursor: pointer;
-      display: flex; flex-direction: column;
-      position: relative;
-    }
+    .media-card { flex: 0 0 145px; background: var(--card); border: 1px solid var(--border-subtle); border-radius: 16px; overflow: hidden; cursor: pointer; display: flex; flex-direction: column; position: relative; }
     .media-thumb { width: 100%; height: 200px; object-fit: cover; background: #201e1a; }
-    
     .card-actions-float { position: absolute; top: 8px; right: 8px; z-index: 2; display: flex; flex-direction: column; gap: 6px; }
-    .icon-circle-btn {
-      width: 32px; height: 32px; border-radius: 50%;
-      background: rgba(12, 11, 10, 0.78); backdrop-filter: blur(8px);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer;
-    }
+    .icon-circle-btn { width: 32px; height: 32px; border-radius: 50%; background: rgba(12, 11, 10, 0.78); backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.15); display: flex; align-items: center; justify-content: center; cursor: pointer; }
     .icon-circle-btn svg { width: 15px; height: 15px; stroke: #fff; }
     .icon-circle-btn.saved { background: var(--accent); border-color: var(--accent); }
     .icon-circle-btn.saved svg { stroke: #0c0b0a; fill: #0c0b0a; }
 
-    .hindi-ribbon {
-      position: absolute; top: 8px; left: 8px; z-index: 2;
-      background: var(--hindi-badge); color: #fff;
-      font-size: 0.62rem; font-weight: 800; padding: 2px 7px;
-      border-radius: 6px; text-transform: uppercase; letter-spacing: 0.5px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.6);
-    }
-
+    .hindi-ribbon { position: absolute; top: 8px; left: 8px; z-index: 2; background: var(--hindi-badge); color: #fff; font-size: 0.62rem; font-weight: 800; padding: 2px 7px; border-radius: 6px; text-transform: uppercase; }
     .card-meta-box { padding: 10px; display: flex; flex-direction: column; flex: 1; justify-content: space-between; }
-    .media-title {
-      font-size: 0.82rem; font-weight: 700; line-height: 1.3;
-      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-      margin-bottom: 4px;
-    }
+    .media-title { font-size: 0.82rem; font-weight: 700; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 4px; }
     .genre-tag-inline { font-size: 0.65rem; color: var(--accent); margin-bottom: 6px; }
     .media-subinfo { font-size: 0.72rem; color: var(--text-muted); display: flex; justify-content: space-between; }
 
-    /* Modal Overlay & Details */
-    .modal-overlay {
-      position: fixed; inset: 0; z-index: 300;
-      background: #0c0b0a;
-      display: none; flex-direction: column; overflow-y: auto;
+    .sync-card-box {
+      background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 18px; margin-bottom: 16px; text-align: left;
     }
+    .sync-card-title { font-size: 0.95rem; font-weight: 800; color: var(--accent); margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+    .sync-card-sub { font-size: 0.76rem; color: var(--text-muted); line-height: 1.4; margin-bottom: 12px; }
+    
+    .input-field-app {
+      width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      padding: 12px; color: #fff; font-size: 0.85rem; outline: none; margin-bottom: 10px;
+    }
+    .input-field-app:focus { border-color: var(--accent); }
+
+    .btn-action-primary {
+      background: var(--accent); color: #000; font-weight: 800; border: none; border-radius: 12px;
+      padding: 12px; width: 100%; cursor: pointer; font-size: 0.88rem; transition: 0.2s;
+    }
+    .btn-action-secondary {
+      background: var(--surface); color: #fff; font-weight: 700; border: 1px solid var(--border);
+      border-radius: 12px; padding: 10px; width: 100%; cursor: pointer; font-size: 0.82rem;
+    }
+
+    /* Fixed Bottom Nav Bar */
+    .bottom-nav {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 90;
+      background: rgba(18, 16, 14, 0.96); backdrop-filter: blur(16px);
+      border-top: 1px solid var(--border-subtle); padding: 10px 16px 14px;
+      display: flex; justify-content: space-around; align-items: center;
+    }
+    .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--text-muted); font-size: 0.72rem; font-weight: 700; cursor: pointer; }
+    .nav-item svg { width: 22px; height: 22px; stroke: var(--text-muted); }
+    .nav-item.active { color: var(--accent); }
+    .nav-item.active svg { stroke: var(--accent); }
+
+    /* Modal Overlay */
+    .modal-overlay { position: fixed; inset: 0; z-index: 300; background: #0c0b0a; display: none; flex-direction: column; overflow-y: auto; }
     .modal-banner-wrap { width: 100%; height: 320px; position: relative; flex-shrink: 0; }
     .modal-banner { width: 100%; height: 100%; object-fit: cover; }
-    .modal-banner-gradient {
-      position: absolute; inset: 0;
-      background: linear-gradient(180deg, rgba(12,11,10,0.2) 0%, rgba(12,11,10,0.7) 60%, #0c0b0a 100%);
-    }
-    .modal-nav-header {
-      position: absolute; top: 16px; left: 16px; right: 16px;
-      display: flex; justify-content: space-between; z-index: 10;
-    }
-    .modal-circle-btn {
-      width: 40px; height: 40px; border-radius: 50%;
-      background: rgba(12, 11, 10, 0.65); border: 1px solid var(--border);
-      display: flex; align-items: center; justify-content: center; cursor: pointer;
-    }
+    .modal-banner-gradient { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(12,11,10,0.2) 0%, rgba(12,11,10,0.7) 60%, #0c0b0a 100%); }
+    .modal-nav-header { position: absolute; top: 16px; left: 16px; right: 16px; display: flex; justify-content: space-between; z-index: 10; }
+    .modal-circle-btn { width: 40px; height: 40px; border-radius: 50%; background: rgba(12, 11, 10, 0.65); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; }
     .modal-circle-btn svg { width: 20px; height: 20px; stroke: #fff; }
     .modal-circle-btn.fav-active svg { stroke: var(--heart); fill: var(--heart); }
-
     .modal-body { padding: 0 20px 40px; margin-top: -20px; position: relative; z-index: 5; }
     .modal-title { font-size: 1.5rem; font-weight: 800; margin-bottom: 4px; }
     .modal-tags { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px; }
-
-    .lang-capsules-wrap {
-      display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px;
-    }
-    .lang-pill {
-      font-size: 0.72rem; font-weight: 700; padding: 4px 10px; border-radius: 12px;
-      background: var(--surface); border: 1px solid var(--border); color: var(--text-muted);
-    }
-    .lang-pill.hindi-active {
-      background: var(--hindi-bg); border-color: var(--hindi-badge); color: #ff8a65; font-weight: 800;
-    }
-
+    .lang-capsules-wrap { display: flex; flex-wrap: gap; gap: 6px; margin-bottom: 16px; }
+    .lang-pill { font-size: 0.72rem; font-weight: 700; padding: 4px 10px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); color: var(--text-muted); }
+    .lang-pill.hindi-active { background: var(--hindi-bg); border-color: var(--hindi-badge); color: #ff8a65; font-weight: 800; }
     .modal-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
-    .action-tile {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 14px; padding: 12px 4px; text-align: center; cursor: pointer;
-      display: flex; flex-direction: column; align-items: center; gap: 6px;
-    }
+    .action-tile { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 12px 4px; text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px; }
     .action-tile svg { width: 20px; height: 20px; stroke: var(--text-muted); }
     .action-tile p { font-size: 0.72rem; font-weight: 700; color: var(--text-muted); }
     .action-tile.active { border-color: var(--accent); background: var(--accent-soft); }
     .action-tile.active svg { stroke: var(--accent); fill: var(--accent); }
     .action-tile.active p { color: var(--accent); }
-
-    .box-block {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 16px; padding: 16px; margin-bottom: 18px;
-    }
-    .ep-counter-badge {
-      font-size: 0.85rem; font-weight: 800; color: var(--accent);
-      background: rgba(245, 197, 24, 0.1); border: 1px dashed var(--accent);
-      padding: 3px 10px; border-radius: 8px; cursor: pointer;
-    }
-    .ep-tracker-btn {
-      background: var(--card); border: 1px solid var(--border); color: #fff;
-      font-weight: 700; padding: 8px 14px; border-radius: 10px; flex: 1; cursor: pointer;
-    }
-
-    .score-control-wrap {
-      display: flex; align-items: center; justify-content: space-between; gap: 10px;
-    }
-    .score-display-btn {
-      flex: 1; background: var(--card); border: 1px solid var(--border);
-      padding: 8px 12px; border-radius: 10px; text-align: center;
-      font-size: 0.95rem; font-weight: 800; color: var(--accent); cursor: pointer;
-    }
-    .score-btn {
-      background: var(--surface); border: 1px solid var(--border);
-      color: #fff; font-weight: 800; width: 38px; height: 38px; border-radius: 10px; cursor: pointer;
-    }
-
-    .fav-showcase-box { margin-bottom: 24px; }
-    .fav-row { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: none; }
-    .fav-row::-webkit-scrollbar { display: none; }
-    .fav-card {
-      flex: 0 0 120px; position: relative; border-radius: 12px; overflow: hidden;
-      border: 1px solid rgba(239, 68, 68, 0.35); cursor: pointer;
-    }
-    .fav-card img { width: 100%; height: 160px; object-fit: cover; }
-    .fav-badge {
-      position: absolute; top: 6px; right: 6px; background: rgba(0,0,0,0.7);
-      border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
-    }
-    .fav-card-title {
-      position: absolute; bottom: 0; left: 0; right: 0;
-      background: linear-gradient(180deg, transparent, rgba(0,0,0,0.95));
-      padding: 8px 6px 4px; font-size: 0.72rem; font-weight: 700; color: #fff;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
-
-    .bottom-nav {
-      position: fixed; bottom: 0; left: 0; right: 0; z-index: 90;
-      background: rgba(18, 16, 14, 0.96);
-      backdrop-filter: blur(16px);
-      border-top: 1px solid var(--border-subtle);
-      padding: 10px 16px 14px;
-      display: flex; justify-content: space-around; align-items: center;
-    }
-    .nav-item {
-      display: flex; flex-direction: column; align-items: center; gap: 4px;
-      color: var(--text-muted); font-size: 0.72rem; font-weight: 700; cursor: pointer;
-    }
-    .nav-item svg { width: 22px; height: 22px; stroke: var(--text-muted); }
-    .nav-item.active { color: var(--accent); }
-    .nav-item.active svg { stroke: var(--accent); }
-
-    .google-btn {
-      width: 100%; background: #ffffff; color: #1f1f1f;
-      border: 1px solid #747775; border-radius: 14px; padding: 12px;
-      font-weight: 700; font-size: 0.95rem; cursor: pointer;
-      display: flex; align-items: center; justify-content: center; gap: 12px;
-      margin-bottom: 12px;
-    }
-    .google-btn img { width: 22px; height: 22px; }
-    
-    .profile-action-btn {
-      background: var(--surface); border: 1px solid var(--border);
-      color: #fff; padding: 14px 16px; border-radius: 14px;
-      font-weight: 700; display: flex; align-items: center; gap: 12px;
-      cursor: pointer; width: 100%; text-align: left; font-size: 0.9rem;
-    }
-    .profile-action-btn svg { width: 20px; height: 20px; stroke: var(--accent); }
-    .profile-action-btn.danger { border-color: rgba(239, 68, 68, 0.3); color: #ef4444; }
-    .profile-action-btn.danger svg { stroke: #ef4444; }
-
-    .sync-status-indicator {
-      display: flex; align-items: center; justify-content: center; gap: 6px;
-      font-size: 0.75rem; color: #10b981; margin-top: 10px; font-weight: 600;
-    }
-    .sync-dot {
-      width: 7px; height: 7px; border-radius: 50%; background: #10b981;
-      box-shadow: 0 0 8px #10b981;
-    }
+    .box-block { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 16px; margin-bottom: 18px; }
+    .ep-counter-badge { font-size: 0.85rem; font-weight: 800; color: var(--accent); background: rgba(245, 197, 24, 0.1); border: 1px dashed var(--accent); padding: 3px 10px; border-radius: 8px; cursor: pointer; }
+    .ep-tracker-btn { background: var(--card); border: 1px solid var(--border); color: #fff; font-weight: 700; padding: 8px 14px; border-radius: 10px; flex: 1; cursor: pointer; }
+    .score-control-wrap { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .score-display-btn { flex: 1; background: var(--card); border: 1px solid var(--border); padding: 8px 12px; border-radius: 10px; text-align: center; font-size: 0.95rem; font-weight: 800; color: var(--accent); cursor: pointer; }
+    .score-btn { background: var(--surface); border: 1px solid var(--border); color: #fff; font-weight: 800; width: 38px; height: 38px; border-radius: 10px; cursor: pointer; }
   </style>
-<script>if("serviceWorker" in navigator){window.addEventListener("load",()=>{navigator.serviceWorker.register("https://imranbroh57.github.io/otaku-vault/sw.js");});}</script>
+  <script src="sync.js"></script>
 </head>
 <body>
 
-  <!-- Top Bar with Circular Anime Icon (Design 1) -->
+  <!-- Top Bar -->
   <header class="top-bar">
     <div class="brand" onclick="switchTab('home')">
       <img src="icon.png" class="brand-icon-circle" alt="Otaku Vault Logo">
@@ -441,6 +274,7 @@
     </div>
   </header>
 
+  <!-- Main View -->
   <main class="container" id="main-view">
     <div class="search-wrapper">
       <div class="search-box">
@@ -450,7 +284,6 @@
       <div class="suggestions-dropdown" id="search-suggestions"></div>
     </div>
 
-    <!-- Weekly Airing Schedule Section -->
     <div class="schedule-bar">
       <div class="sched-head">
         <span>🗓️ WEEKLY AIRING SCHEDULE</span>
@@ -479,7 +312,7 @@
     <div class="hero-banner">
       <div class="date-badge">
         <div class="month" id="cur-month">NOV</div>
-        <div class="day" id="cur-day">5</div>
+        <div class="day" id="cur-day">9</div>
       </div>
       <div class="hero-content">
         <div class="hero-tag">DISCOVER DAILY</div>
@@ -489,62 +322,42 @@
     </div>
 
     <div id="dynamic-section" style="display:none; margin-bottom: 24px;">
-      <div class="section-head">
-        <div class="section-title" id="dynamic-title">Results</div>
-      </div>
+      <div class="section-head"><div class="section-title" id="dynamic-title">Results</div></div>
       <div class="carousel-row" id="dynamic-row" style="flex-wrap: wrap; gap: 14px;"></div>
     </div>
 
     <div id="default-sections">
-      <div class="section-head">
-        <div class="section-title">Airing Today / Schedule</div>
-      </div>
-      <div class="carousel-row" id="schedule-row">
-        <div style="color:var(--text-muted); padding:20px;">Loading Schedule Anime...</div>
-      </div>
+      <div class="section-head"><div class="section-title">Airing Today / Schedule</div></div>
+      <div class="carousel-row" id="schedule-row"><div style="color:var(--text-muted); padding:20px;">Loading Schedule Anime...</div></div>
 
-      <div class="section-head" style="margin-top:20px;">
-        <div class="section-title">Trending & Airing Now</div>
-      </div>
-      <div class="carousel-row" id="airing-row">
-        <div style="color:var(--text-muted); padding:20px;">Loading Airing Anime...</div>
-      </div>
+      <div class="section-head" style="margin-top:20px;"><div class="section-title">Trending & Airing Now</div></div>
+      <div class="carousel-row" id="airing-row"><div style="color:var(--text-muted); padding:20px;">Loading Airing Anime...</div></div>
 
-      <div class="section-head" style="margin-top:20px;">
-        <div class="section-title">All-Time Popular</div>
-      </div>
-      <div class="carousel-row" id="popular-row">
-        <div style="color:var(--text-muted); padding:20px;">Loading Popular Anime...</div>
-      </div>
+      <div class="section-head" style="margin-top:20px;"><div class="section-title">All-Time Popular</div></div>
+      <div class="carousel-row" id="popular-row"><div style="color:var(--text-muted); padding:20px;">Loading Popular Anime...</div></div>
     </div>
   </main>
 
+  <!-- Watchlist View -->
   <main class="container" id="watchlist-view" style="display:none;">
-    <div class="section-head">
-      <div class="section-title">My Vault Library</div>
-    </div>
-    
+    <div class="section-head"><div class="section-title">My Vault Library</div></div>
     <div class="chips-row" style="margin-bottom:16px;">
-      <button class="chip active" id="tab-wl-all" onclick="filterWatchlistTab('ALL', this)">All</button>
-      <button class="chip" id="tab-wl-watching" onclick="filterWatchlistTab('WATCHING', this)">Watching</button>
-      <button class="chip" id="tab-wl-later" onclick="filterWatchlistTab('PLANNING', this)">Watch Later</button>
-      <button class="chip" id="tab-wl-watched" onclick="filterWatchlistTab('COMPLETED', this)">Watched</button>
+      <button class="chip active" onclick="filterWatchlistTab('ALL', this)">All</button>
+      <button class="chip" onclick="filterWatchlistTab('WATCHING', this)">Watching</button>
+      <button class="chip" onclick="filterWatchlistTab('PLANNING', this)">Watch Later</button>
+      <button class="chip" onclick="filterWatchlistTab('COMPLETED', this)">Watched</button>
     </div>
-
     <div class="carousel-row" id="watchlist-container" style="flex-wrap: wrap; gap: 14px;"></div>
   </main>
 
+  <!-- Profile View -->
   <main class="container" id="profile-view" style="display:none;">
-    <div style="background:var(--card); border:1px solid var(--border); border-radius:20px; padding:26px 20px; text-align:center; margin-bottom:20px;">
+    <div style="background:var(--card); border:1px solid var(--border); border-radius:20px; padding:24px 20px; text-align:center; margin-bottom:20px;">
       <div id="prof-avatar-wrap" style="width:76px; height:76px; border-radius:50%; background:var(--accent-soft); border:2px solid var(--accent); margin:0 auto 12px; display:flex; align-items:center; justify-content:center; overflow:hidden;">
         <svg fill="none" viewBox="0 0 24 24" stroke-width="2" style="width:36px; height:36px; stroke:var(--accent);"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
       </div>
-      <h2 id="prof-display-name" style="font-size:1.35rem; font-weight:800;">Guest Explorer</h2>
-      <p id="prof-email" style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;">Sign in with Gmail for Cloud Sync</p>
-      
-      <div id="sync-indicator" class="sync-status-indicator" style="display:none;">
-        <span class="sync-dot"></span> String-based Cloud Sync Active
-      </div>
+      <h2 id="prof-display-name" style="font-size:1.35rem; font-weight:800;">Guest Vault User</h2>
+      <p id="prof-email" style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;">Local Storage Active</p>
 
       <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; margin-top:20px; padding-top:16px; border-top:1px solid var(--border-subtle);">
         <div><h3 id="stat-total" style="font-size:1.2rem; font-weight:800; color:var(--accent);">0</h3><p style="font-size:0.68rem; color:var(--text-muted);">Total</p></div>
@@ -554,29 +367,38 @@
       </div>
     </div>
 
-    <!-- All-Time Favorites Showcase in Profile -->
-    <div class="fav-showcase-box" id="fav-showcase-wrap" style="display:none;">
-      <div class="section-head" style="margin-top:0;">
-        <div class="section-title">❤️ All-Time Favorites</div>
+    <!-- Sync Key Option -->
+    <div class="sync-card-box">
+      <div class="sync-card-title">🔑 Cloud Sync Key (No Account Needed)</div>
+      <p class="sync-card-sub">অ্যাকাউন্ট খোলা ছাড়াই এই ইউনিক কী দিয়ে যেকোনো ফোনে এক সেকেন্ডে আপনার সম্পূর্ণ ওয়াচলিস্ট ব্যাকআপ বা লোড করুন।</p>
+      <div style="display:flex; gap:8px; margin-bottom:10px;">
+        <input type="text" id="sync-key-input" class="input-field-app" style="margin-bottom:0; font-weight:800; letter-spacing:1px; text-transform:uppercase;" placeholder="e.g. OTK-9481">
+        <button class="btn-action-primary" style="width:110px;" onclick="backupWithSyncKey()">Backup</button>
       </div>
-      <div class="fav-row" id="fav-showcase-row"></div>
+      <div style="display:flex; gap:8px;">
+        <button class="btn-action-secondary" onclick="generateNewSyncKey()">🎲 Generate New Key</button>
+        <button class="btn-action-secondary" style="border-color:var(--accent); color:var(--accent);" onclick="restoreWithSyncKey()">📥 Restore Key</button>
+      </div>
     </div>
 
-    <div style="display:flex; flex-direction:column; gap:10px;">
-      <div id="google-auth-box">
-        <button class="google-btn" onclick="handleGoogleSignIn()">
-          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
-          <span>Sign in with Google Account</span>
-        </button>
+    <!-- Email Auth Option -->
+    <div class="sync-card-box" id="email-auth-box">
+      <div class="sync-card-title">📧 Email & Password Cloud Account</div>
+      <p class="sync-card-sub">কোনো গুগল পপআপ ছাড়া সরাসরি অ্যাপেই অ্যাকাউন্ট বানিয়ে সুরক্ষিত ক্লাউড সিঙ্ক চালু করুন।</p>
+      <input type="email" id="auth-email" class="input-field-app" placeholder="Enter your email">
+      <input type="password" id="auth-pass" class="input-field-app" placeholder="Enter password (min 6 chars)">
+      <div style="display:flex; gap:10px;">
+        <button class="btn-action-primary" onclick="handleEmailLogin()">Sign In</button>
+        <button class="btn-action-secondary" onclick="handleEmailRegister()">Create Account</button>
       </div>
-
-      <button id="logout-btn" class="profile-action-btn danger" onclick="handleCloudLogout()" style="display:none; margin-top:10px;">
-        <svg fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-        Log Out of Account
-      </button>
     </div>
+
+    <button id="logout-btn" class="btn-action-secondary" onclick="handleEmailLogout()" style="display:none; border-color:var(--heart); color:var(--heart); margin-bottom:16px;">
+      🚪 Log Out of Cloud Account
+    </button>
   </main>
 
+  <!-- Bottom Navigation Bar -->
   <nav class="bottom-nav">
     <div class="nav-item active" id="nav-home" onclick="switchTab('home')">
       <svg fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
@@ -615,11 +437,8 @@
     <div class="modal-body">
       <h2 id="m-title" class="modal-title"></h2>
       <div id="m-tags" class="modal-tags"></div>
-
-      <!-- Audio / Available Languages Section -->
       <div style="font-size:0.75rem; font-weight:800; color:var(--accent); margin-bottom:6px; letter-spacing:0.5px;">AUDIO & DUBS AVAILABLE</div>
       <div class="lang-capsules-wrap" id="m-audio-langs"></div>
-
       <div id="m-genres" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px;"></div>
 
       <div class="modal-actions">
@@ -641,13 +460,10 @@
         </div>
       </div>
 
-      <!-- Episode Tracker -->
       <div class="box-block">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
           <span style="font-size:0.85rem; font-weight:700;">Episode Progress</span>
-          <span id="m-ep-counter" class="ep-counter-badge" onclick="promptCustomEpisode()" title="Click to enter episode manually">
-            0 / 0 Ep (Tap to edit)
-          </span>
+          <span id="m-ep-counter" class="ep-counter-badge" onclick="promptCustomEpisode()">0 / 0 Ep (Tap to edit)</span>
         </div>
         <div style="display:flex; gap:10px;">
           <button class="ep-tracker-btn" onclick="adjustActiveEp(-1)">-1 Episode</button>
@@ -655,7 +471,6 @@
         </div>
       </div>
 
-      <!-- Personal Rating Interactive Section -->
       <div class="box-block">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
           <span style="font-size:0.85rem; font-weight:700;">My Personal Rating</span>
@@ -663,23 +478,13 @@
         </div>
         <div class="score-control-wrap">
           <button class="score-btn" onclick="adjustActiveScore(-0.5)">-</button>
-          <div class="score-display-btn" id="m-score-display" onclick="promptCustomScore()">
-            ⭐ No Score (Tap to Rate)
-          </div>
+          <div class="score-display-btn" id="m-score-display" onclick="promptCustomScore()">⭐ No Score (Tap to Rate)</div>
           <button class="score-btn" onclick="adjustActiveScore(0.5)">+</button>
         </div>
       </div>
 
       <div style="font-size:0.88rem; font-weight:800; color:var(--accent); margin-bottom:8px;">SYNOPSIS</div>
       <div id="m-desc" style="font-size:0.88rem; line-height:1.65; color:#d6d0c4; margin-bottom:24px;"></div>
-
-      <div style="font-size:0.88rem; font-weight:800; color:var(--accent); margin-bottom:12px;">ANIME INFORMATION</div>
-      <div style="display:flex; flex-direction:column; gap:10px; font-size:0.85rem;">
-        <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-subtle); padding-bottom:8px;"><span style="color:var(--text-muted);">Studio</span><span id="m-studio" style="font-weight:700;">-</span></div>
-        <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-subtle); padding-bottom:8px;"><span style="color:var(--text-muted);">Format</span><span id="m-format" style="font-weight:700;">TV</span></div>
-        <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-subtle); padding-bottom:8px;"><span style="color:var(--text-muted);">Status</span><span id="m-status" style="font-weight:700;">Finished</span></div>
-        <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-subtle); padding-bottom:8px;"><span style="color:var(--text-muted);">AniList Score</span><span id="m-score" style="font-weight:700;">N/A</span></div>
-      </div>
     </div>
   </div>
 
@@ -691,49 +496,135 @@
     let activeAnime = null;
     let suggestTimer = null;
 
+    // --- সিঙ্ক কী জেনারেটর ও হ্যান্ডলার ---
+    function generateNewSyncKey() {
+      const randomNum = Math.floor(1000 + Math.random() * 9000);
+      const newKey = `OTK-${randomNum}`;
+      document.getElementById('sync-key-input').value = newKey;
+      localStorage.setItem('ov_sync_key', newKey);
+      alert(`আপনার নতুন Sync Key তৈরি হয়েছে: ${newKey}\nএই Key টি মনে রাখুন বা সেভ করে রাখুন!`);
+    }
+
+    async function backupWithSyncKey() {
+      const key = document.getElementById('sync-key-input').value.trim().toUpperCase();
+      if (!key || key.length < 5) {
+        alert("দয়া করে একটি সঠিক Sync Key দিন (যেমন: OTK-1234)");
+        return;
+      }
+      try {
+        await window.otakuFirebase.saveBySyncKey(key, userLibrary);
+        localStorage.setItem('ov_sync_key', key);
+        alert(`✅ ওয়াচলিস্ট সফলভাবে ক্লাউডে ব্যাকআপ হয়েছে!\nআপনার Key: ${key}`);
+      } catch (e) {
+        alert("ক্লাউড ব্যাকআপে সমস্যা হয়েছে। ইন্টারনেট চেক করুন।");
+      }
+    }
+
+    async function restoreWithSyncKey() {
+      const key = document.getElementById('sync-key-input').value.trim().toUpperCase();
+      if (!key) {
+        alert("রিস্টোর করতে Sync Key টাইপ করুন!");
+        return;
+      }
+      try {
+        const loaded = await window.otakuFirebase.loadBySyncKey(key);
+        if (loaded && Array.isArray(loaded)) {
+          userLibrary = loaded;
+          localStorage.setItem('ov_offline_library', JSON.stringify(userLibrary));
+          localStorage.setItem('ov_sync_key', key);
+          updateCounts();
+          alert(`🎉 ডাটা সফলভাবে রিস্টোর হয়েছে! মোট ${userLibrary.length} টি অ্যানিমে লোড হয়েছে।`);
+          if (currentWlTab) renderWatchlist();
+        } else {
+          alert("এই Sync Key দিয়ে কোনো ডাটা খুঁজে পাওয়া যায়নি!");
+        }
+      } catch (e) {
+        alert("ডাটা রিস্টোর করতে সমস্যা হয়েছে।");
+      }
+    }
+
+    // --- ইমেইল ও পাসওয়ার্ড হ্যান্ডলার ---
+    async function handleEmailRegister() {
+      const email = document.getElementById('auth-email').value.trim();
+      const pass = document.getElementById('auth-pass').value.trim();
+      if (!email || pass.length < 6) {
+        alert("সঠিক ইমেইল এবং অন্তত ৬ সংখ্যার পাসওয়ার্ড দিন!");
+        return;
+      }
+      try {
+        const user = await window.otakuFirebase.registerEmail(email, pass);
+        activeUser = user;
+        await window.otakuFirebase.saveUserVault(user.uid, userLibrary);
+        alert("✅ অ্যাকাউন্ট তৈরি হয়েছে এবং ডাটা সিঙ্ক হয়েছে!");
+        refreshUserUI();
+      } catch (e) {
+        alert("রেজিস্ট্রেশনে সমস্যা: " + e.message);
+      }
+    }
+
+    async function handleEmailLogin() {
+      const email = document.getElementById('auth-email').value.trim();
+      const pass = document.getElementById('auth-pass').value.trim();
+      if (!email || !pass) {
+        alert("ইমেইল ও পাসওয়ার্ড দিন!");
+        return;
+      }
+      try {
+        const user = await window.otakuFirebase.loginEmail(email, pass);
+        activeUser = user;
+        const cloudVault = await window.otakuFirebase.loadUserVault(user.uid);
+        if (cloudVault && Array.isArray(cloudVault)) {
+          userLibrary = cloudVault;
+          localStorage.setItem('ov_offline_library', JSON.stringify(userLibrary));
+        }
+        alert("🎉 লগইন সফল হয়েছে!");
+        refreshUserUI();
+      } catch (e) {
+        alert("লগইন ভুল হয়েছে: " + e.message);
+      }
+    }
+
+    async function handleEmailLogout() {
+      if (confirm("অ্যাকাউন্ট থেকে লগআউট করতে চান?")) {
+        await window.otakuFirebase.logout();
+        activeUser = null;
+        refreshUserUI();
+      }
+    }
+
+    function refreshUserUI() {
+      const nameEl = document.getElementById('prof-display-name');
+      const emailEl = document.getElementById('prof-email');
+      const authBox = document.getElementById('email-auth-box');
+      const logoutBtn = document.getElementById('logout-btn');
+
+      if (activeUser) {
+        nameEl.innerText = activeUser.email.split('@')[0];
+        emailEl.innerText = activeUser.email + " (Cloud Synced)";
+        authBox.style.display = 'none';
+        logoutBtn.style.display = 'block';
+      } else {
+        nameEl.innerText = "Guest Vault User";
+        emailEl.innerText = "Local Storage Active";
+        authBox.style.display = 'block';
+        logoutBtn.style.display = 'none';
+      }
+      updateCounts();
+    }
+
+    // --- এনিমে ফেচিং ও অ্যাপ ফাংশনালিটি ---
     const HINDI_DUBBED_TITLES = [
       "jujutsu kaisen", "demon slayer", "chainsaw man", "solo leveling", 
       "naruto", "naruto shippuden", "boruto", "one punch man", "dragon ball", 
       "kaiju no. 8", "black clover", "dr. stone", "vinland saga", "spy x family",
-      "attack on titan", "my hero academia", "tokyo revengers", "mashle", 
-      "shangri-la frontier", "blue lock", "suzume", "your name", "weathering with you",
-      "mushoku tensei", "ranking of kings", "hell's paradise", "wind breaker"
+      "attack on titan", "my hero academia", "tokyo revengers", "mashle"
     ];
 
     function checkHasHindiDub(item) {
       if (!item) return false;
       const eng = (item.title?.english || "").toLowerCase();
       const rom = (item.title?.romaji || "").toLowerCase();
-      
-      const inList = HINDI_DUBBED_TITLES.some(k => eng.includes(k) || rom.includes(k));
-      if (inList) return true;
-
-      if (item.externalLinks && Array.isArray(item.externalLinks)) {
-        return item.externalLinks.some(l => (l.site && l.site.toLowerCase().includes("crunchyroll")) || (l.language && l.language.toLowerCase() === "hindi"));
-      }
-      return false;
-    }
-
-    function getAvailableAudioTracks(item) {
-      const tracks = ["🇯🇵 Japanese (Sub/Raw)", "🇺🇸 English Dub"];
-      if (checkHasHindiDub(item)) {
-        tracks.unshift("🇮🇳 Hindi Dub (Official)");
-      }
-      return tracks;
-    }
-
-    function stringToInternal(str) {
-      if (!str) return 'PLANNING';
-      const s = String(str).toLowerCase();
-      if (s === 'watch' || s === 'watching') return 'WATCHING';
-      if (s === 'watched' || s === 'completed') return 'COMPLETED';
-      return 'PLANNING';
-    }
-
-    function internalToString(status) {
-      if (status === 'WATCHING') return 'watch';
-      if (status === 'COMPLETED') return 'watched';
-      return 'unwatch';
+      return HINDI_DUBBED_TITLES.some(k => eng.includes(k) || rom.includes(k));
     }
 
     function getLocalBackup() {
@@ -743,21 +634,14 @@
     async function persistLibrary(list) {
       userLibrary = list;
       localStorage.setItem('ov_offline_library', JSON.stringify(list));
-      
-      if (activeUser && window.otakuFirebase) {
-        const stringMap = {};
-        list.forEach(item => {
-          stringMap[item.id] = {
-            status: internalToString(item.status),
-            episode: String(item.episodes_watched || "0"),
-            score: String(item.user_score || "0"),
-            fav: item.is_favorite ? "1" : "0"
-          };
-        });
-        window.otakuFirebase.saveStringMap(activeUser, stringMap);
+      if (activeUser) {
+        window.otakuFirebase.saveUserVault(activeUser.uid, list);
+      }
+      const savedKey = localStorage.getItem('ov_sync_key');
+      if (savedKey) {
+        window.otakuFirebase.saveBySyncKey(savedKey, list);
       }
       updateCounts();
-      renderFavoritesShowcase();
     }
 
     function updateGreeting() {
@@ -765,123 +649,6 @@
       const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
       document.getElementById('cur-month').innerText = months[now.getMonth()];
       document.getElementById('cur-day').innerText = now.getDate();
-
-      const hours = now.getHours();
-      let greet = 'Night vibes';
-      if (hours >= 5 && hours < 12) greet = 'Good morning';
-      else if (hours >= 12 && hours < 17) greet = 'Good afternoon';
-      else if (hours >= 17 && hours < 22) greet = 'Good evening';
-
-      const displayName = activeUser?.displayName || 'Explorer';
-      document.getElementById('greeting-txt').innerText = `${greet}, ${displayName} 👋`;
-    }
-
-    async function hydrateFromStringMap(stringMap) {
-      const ids = Object.keys(stringMap).map(id => parseInt(id));
-      if (!ids.length) return [];
-
-      const query = `
-        query ($ids: [Int]) {
-          Page(page: 1, perPage: 50) {
-            media(id_in: $ids, type: ANIME) {
-              id
-              title { english romaji }
-              coverImage { large extraLarge }
-              bannerImage
-              averageScore
-              format
-              episodes
-              status
-              description(asHtml: false)
-              genres
-              startDate { year }
-              trailer { id site }
-              studios(isMain: true) { nodes { name } }
-              externalLinks { site language }
-            }
-          }
-        }
-      `;
-      try {
-        const res = await fetch('https://graphql.anilist.co', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query, variables: { ids } })
-        });
-        const d = await res.json();
-        const mediaList = d.data?.Page?.media || [];
-        
-        return mediaList.map(item => {
-          animeCache[item.id] = item;
-          const userMeta = stringMap[item.id];
-          return {
-            ...item,
-            status: stringToInternal(userMeta?.status),
-            episodes_watched: parseInt(userMeta?.episode || "0") || 0,
-            user_score: parseFloat(userMeta?.score || "0") || 0,
-            is_favorite: userMeta?.fav === "1"
-          };
-        });
-      } catch (err) {
-        console.error("Hydration Error:", err);
-        return getLocalBackup();
-      }
-    }
-
-    async function refreshUserUI() {
-      if (activeUser) {
-        document.getElementById('prof-display-name').innerText = activeUser.displayName || 'Google User';
-        document.getElementById('prof-email').innerText = activeUser.email || '';
-        document.getElementById('google-auth-box').style.display = 'none';
-        document.getElementById('logout-btn').style.display = 'flex';
-        document.getElementById('sync-indicator').style.display = 'flex';
-        if (activeUser.photoURL) {
-          document.getElementById('prof-avatar-wrap').innerHTML = `<img src="${activeUser.photoURL}" style="width:100%; height:100%; object-fit:cover;">`;
-        }
-        
-        const stringMap = await window.otakuFirebase.loadStringMap(activeUser);
-        if (stringMap && Object.keys(stringMap).length > 0) {
-          userLibrary = await hydrateFromStringMap(stringMap);
-          localStorage.setItem('ov_offline_library', JSON.stringify(userLibrary));
-        } else {
-          userLibrary = getLocalBackup();
-          if (userLibrary.length > 0) {
-            persistLibrary(userLibrary);
-          }
-        }
-      } else {
-        document.getElementById('prof-display-name').innerText = 'Guest Explorer';
-        document.getElementById('prof-email').innerText = 'Sign in with Gmail for Cloud Sync';
-        document.getElementById('google-auth-box').style.display = 'block';
-        document.getElementById('logout-btn').style.display = 'none';
-        document.getElementById('sync-indicator').style.display = 'none';
-        document.getElementById('prof-avatar-wrap').innerHTML = `<svg fill="none" viewBox="0 0 24 24" stroke-width="2" style="width:36px; height:36px; stroke:var(--accent);"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>`;
-        userLibrary = getLocalBackup();
-      }
-      updateGreeting();
-      updateCounts();
-      renderFavoritesShowcase();
-    }
-
-    async function handleGoogleSignIn() {
-      try {
-        const user = await window.otakuFirebase.loginGoogle();
-        if (user) {
-          activeUser = user;
-          await refreshUserUI();
-        }
-      } catch (err) {
-        console.error(err);
-        alert('Google Sign-In Error. Check Authorized Domains.');
-      }
-    }
-
-    async function handleCloudLogout() {
-      if (confirm('Log out from this Google account?')) {
-        await window.otakuFirebase.logout();
-        activeUser = null;
-        await refreshUserUI();
-      }
     }
 
     async function queryAniList(variables) {
@@ -889,28 +656,15 @@
         query ($search: String, $sort: [MediaSort], $status: MediaStatus, $genre: String, $season: MediaSeason, $seasonYear: Int) {
           Page(page: 1, perPage: 16) {
             media(search: $search, sort: $sort, status: $status, genre: $genre, season: $season, seasonYear: $seasonYear, type: ANIME, isAdult: false) {
-              id
-              title { english romaji }
-              coverImage { large extraLarge }
-              bannerImage
-              averageScore
-              format
-              episodes
-              status
-              description(asHtml: false)
-              genres
-              startDate { year }
-              trailer { id site }
-              studios(isMain: true) { nodes { name } }
-              externalLinks { site language }
+              id title { english romaji } coverImage { large extraLarge } bannerImage
+              averageScore format episodes status description(asHtml: false) genres
+              startDate { year } trailer { id site }
             }
           }
         }
       `;
       const res = await fetch('https://graphql.anilist.co', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, variables })
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query, variables })
       });
       const data = await res.json();
       const list = data.data?.Page?.media || [];
@@ -929,23 +683,9 @@
         query ($airStart: Int, $airEnd: Int) {
           Page(page: 1, perPage: 16) {
             airingSchedules(airingAt_greater: $airStart, airingAt_lesser: $airEnd) {
-              episode
-              airingAt
-              media {
-                id
-                title { english romaji }
-                coverImage { large extraLarge }
-                bannerImage
-                averageScore
-                format
-                episodes
-                status
-                description(asHtml: false)
-                genres
-                startDate { year }
-                trailer { id site }
-                studios(isMain: true) { nodes { name } }
-                externalLinks { site language }
+              episode media {
+                id title { english romaji } coverImage { large extraLarge } bannerImage
+                averageScore format episodes status description(asHtml: false) genres startDate { year } trailer { id site }
               }
             }
           }
@@ -953,9 +693,7 @@
       `;
       try {
         const res = await fetch('https://graphql.anilist.co', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query, variables: { airStart, airEnd } })
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query, variables: { airStart, airEnd } })
         });
         const data = await res.json();
         const scheds = data.data?.Page?.airingSchedules || [];
@@ -970,7 +708,6 @@
         });
         return results;
       } catch (err) {
-        console.error("Schedule error:", err);
         return [];
       }
     }
@@ -985,7 +722,6 @@
         const targetDate = new Date();
         targetDate.setDate(today.getDate() + i);
         const dayName = i === 0 ? 'Today' : days[targetDate.getDay()];
-
         const pill = document.createElement('div');
         pill.className = `day-pill ${i === 0 ? 'active' : ''}`;
         pill.innerText = dayName;
@@ -998,14 +734,12 @@
       document.querySelectorAll('#schedule-days-container .day-pill').forEach(p => p.classList.remove('active'));
       pillEl.classList.add('active');
       document.getElementById('sched-active-day-label').innerText = dayName.toUpperCase();
-
       const schedRow = document.getElementById('schedule-row');
-      schedRow.innerHTML = '<div style="color:var(--text-muted); padding:20px;">Fetching day schedule...</div>';
-      
+      schedRow.innerHTML = '<div style="color:var(--text-muted); padding:20px;">Fetching schedule...</div>';
       const list = await fetchAiringSchedule(offset);
       schedRow.innerHTML = '';
       if (!list.length) {
-        schedRow.innerHTML = '<div style="color:var(--text-muted); padding:20px;">No scheduled releases found for this day.</div>';
+        schedRow.innerHTML = '<div style="color:var(--text-muted); padding:20px;">No scheduled releases.</div>';
         return;
       }
       list.forEach(item => schedRow.appendChild(createCard(item)));
@@ -1019,9 +753,7 @@
       const year = item.startDate?.year || '';
       const primaryGenre = (item.genres && item.genres[0]) ? item.genres[0] : 'Anime';
       const hasHindi = checkHasHindiDub(item);
-      
-      const savedEntry = userLibrary.find(x => x.id === item.id);
-      const isSaved = !!savedEntry;
+      const isSaved = !!userLibrary.find(x => x.id === item.id);
 
       const card = document.createElement('div');
       card.className = 'media-card';
@@ -1036,12 +768,10 @@
         <div class="card-meta-box">
           <div class="genre-tag-inline">${item.airingEpisode ? `Ep ${item.airingEpisode} Airing` : primaryGenre}</div>
           <div class="media-title" title="${cleanTitle}">${title}</div>
-          <div class="media-subinfo"><span>${year}</span><span style="color:var(--accent); font-weight:700;">${savedEntry?.user_score ? `⭐ ${savedEntry.user_score}` : score}</span></div>
+          <div class="media-subinfo"><span>${year}</span><span style="color:var(--accent); font-weight:700;">${score}</span></div>
         </div>
       `;
-      card.onclick = (e) => {
-        if (!e.target.closest('.icon-circle-btn')) openModal(item);
-      };
+      card.onclick = (e) => { if (!e.target.closest('.icon-circle-btn')) openModal(item); };
       return card;
     }
 
@@ -1071,35 +801,20 @@
       clearTimeout(suggestTimer);
       const q = document.getElementById('search-input').value.trim();
       const drop = document.getElementById('search-suggestions');
-
-      if (!q || q.length < 2) {
-        drop.style.display = 'none';
-        drop.innerHTML = '';
-        return;
-      }
+      if (!q || q.length < 2) { drop.style.display = 'none'; return; }
 
       suggestTimer = setTimeout(async () => {
         const list = await queryAniList({ search: q });
-        if (!list || list.length === 0) {
-          drop.style.display = 'none';
-          return;
-        }
-        drop.innerHTML = list.slice(0, 6).map(item => {
-          const t = item.title?.english || item.title?.romaji || 'Untitled';
-          const pic = item.coverImage?.large || '';
-          const yr = item.startDate?.year || '';
-          const sc = item.averageScore ? `⭐ ${(item.averageScore / 10).toFixed(1)}` : '';
-          const hd = checkHasHindiDub(item) ? ' • 🎙️ Hindi' : '';
-          return `
-            <div class="suggestion-item" onclick="selectSuggestion(${item.id})">
-              <img src="${pic}" alt="${t}">
-              <div style="overflow:hidden;">
-                <div class="suggestion-title">${t}</div>
-                <div class="suggestion-sub">${yr} • ${sc}${hd}</div>
-              </div>
+        if (!list || list.length === 0) { drop.style.display = 'none'; return; }
+        drop.innerHTML = list.slice(0, 6).map(item => `
+          <div class="suggestion-item" onclick="selectSuggestion(${item.id})">
+            <img src="${item.coverImage?.large || ''}" alt="">
+            <div>
+              <div class="suggestion-title">${item.title?.english || item.title?.romaji}</div>
+              <div class="suggestion-sub">${item.startDate?.year || ''}</div>
             </div>
-          `;
-        }).join('');
+          </div>
+        `).join('');
         drop.style.display = 'block';
       }, 250);
     }
@@ -1107,279 +822,169 @@
     function selectSuggestion(id) {
       document.getElementById('search-suggestions').style.display = 'none';
       document.getElementById('search-input').value = '';
-      const item = animeCache[id];
-      if (item) openModal(item);
-    }
-
-    function getCurrentSeasonInfo() {
-      const month = new Date().getMonth();
-      const year = new Date().getFullYear();
-      let season = 'FALL';
-      if (month >= 0 && month <= 2) season = 'WINTER';
-      else if (month >= 3 && month <= 5) season = 'SPRING';
-      else if (month >= 6 && month <= 8) season = 'SUMMER';
-      return { season, year };
+      if (animeCache[id]) openModal(animeCache[id]);
     }
 
     async function applyCustomFilter(type, btn) {
       document.querySelectorAll('#genre-chips .chip').forEach(c => c.classList.remove('active'));
       btn.classList.add('active');
-
       const dynSec = document.getElementById('dynamic-section');
       const dynRow = document.getElementById('dynamic-row');
-      const dynTitle = document.getElementById('dynamic-title');
       const defSec = document.getElementById('default-sections');
 
-      if (type === 'ALL') {
-        dynSec.style.display = 'none';
-        defSec.style.display = 'block';
-        return;
-      }
-
-      defSec.style.display = 'none';
-      dynSec.style.display = 'block';
+      if (type === 'ALL') { dynSec.style.display = 'none'; defSec.style.display = 'block'; return; }
+      defSec.style.display = 'none'; dynSec.style.display = 'block';
       dynRow.innerHTML = '<div style="color:var(--text-muted); padding:20px;">Fetching Anime...</div>';
 
-      let items = [];
-      if (type === 'HINDI_DUB') {
-        dynTitle.innerText = `🎙️ Official Hindi Dubbed Anime`;
-        const popularList = await queryAniList({ sort: ['POPULARITY_DESC'] });
-        items = popularList.filter(item => checkHasHindiDub(item));
-        if (items.length < 8) {
-          const extra = await queryAniList({ search: "Jujutsu", sort: ['POPULARITY_DESC'] });
-          items = [...new Set([...items, ...extra.filter(item => checkHasHindiDub(item))])];
-        }
-      } else if (type === 'SEASONAL') {
-        const info = getCurrentSeasonInfo();
-        dynTitle.innerText = `${info.season} ${info.year} Anime`;
-        items = await queryAniList({ season: info.season, seasonYear: info.year, sort: ['POPULARITY_DESC'] });
-      } else if (type === 'TOP_RATED') {
-        dynTitle.innerText = `Top Rated Anime`;
-        items = await queryAniList({ sort: ['SCORE_DESC'] });
-      } else {
-        dynTitle.innerText = `${type} Anime`;
-        items = await queryAniList({ genre: type, sort: ['POPULARITY_DESC'] });
-      }
+      let items = (type === 'HINDI_DUB') ? 
+        (await queryAniList({ sort: ['POPULARITY_DESC'] })).filter(item => checkHasHindiDub(item)) :
+        await queryAniList({ genre: type, sort: ['POPULARITY_DESC'] });
 
       dynRow.innerHTML = '';
-      if (!items.length) {
-        dynRow.innerHTML = '<div style="color:var(--text-muted); padding:20px;">No anime found.</div>';
-        return;
-      }
       items.forEach(item => dynRow.appendChild(createCard(item)));
     }
 
+    // --- ব্যাক বাটন ও হিস্ট্রি ন্যাভিগেশন ---
     function openModal(item) {
       activeAnime = item;
-      const title = item.title?.english || item.title?.romaji || 'Untitled';
-      document.getElementById('m-title').innerText = title;
-      document.getElementById('m-banner').src = item.bannerImage || item.coverImage?.extraLarge || item.coverImage?.large;
+      document.getElementById('m-title').innerText = item.title?.english || item.title?.romaji;
+      document.getElementById('m-banner').src = item.bannerImage || item.coverImage?.extraLarge;
       document.getElementById('m-tags').innerText = `${item.startDate?.year || ''} • ${item.format || 'TV'}`;
-      
-      const langBox = document.getElementById('m-audio-langs');
-      const tracks = getAvailableAudioTracks(item);
-      langBox.innerHTML = tracks.map(tr => {
-        const isHindi = tr.includes("Hindi");
-        return `<span class="lang-pill ${isHindi ? 'hindi-active' : ''}">${tr}</span>`;
-      }).join('');
-
-      const genreBox = document.getElementById('m-genres');
-      genreBox.innerHTML = (item.genres || []).map(g => `<span style="background:var(--surface); border:1px solid var(--border); color:var(--accent); font-size:0.72rem; font-weight:700; padding:4px 10px; border-radius:12px;">${g}</span>`).join('');
-
+      document.getElementById('m-audio-langs').innerHTML = (checkHasHindiDub(item) ? ['🎙️ Hindi Dub', '🇯🇵 Japanese (Sub)', '🇺🇸 English Dub'] : ['🇯🇵 Japanese (Sub)', '🇺🇸 English Dub']).map(t => `<span class="lang-pill">${t}</span>`).join('');
+      document.getElementById('m-genres').innerHTML = (item.genres || []).map(g => `<span class="lang-pill">${g}</span>`).join('');
       document.getElementById('m-desc').innerText = item.description ? item.description.replace(/<[^>]*>?/gm, '') : 'No synopsis available.';
-      document.getElementById('m-studio').innerText = item.studios?.nodes?.[0]?.name || 'Unknown';
-      document.getElementById('m-format').innerText = item.format || 'TV';
-      document.getElementById('m-status').innerText = item.status || 'Finished';
-      document.getElementById('m-score').innerText = item.averageScore ? `${(item.averageScore / 10).toFixed(1)} / 10` : 'N/A';
-
       updateModalUI();
-      const m = document.getElementById('detail-modal');
-      m.style.display = 'flex';
-      m.scrollTop = 0;
+      document.getElementById('detail-modal').style.display = 'flex';
+      window.history.pushState({ modalOpen: true }, '');
     }
 
-    function closeModal() {
-      document.getElementById('detail-modal').style.display = 'none';
+    function closeModal(isTriggeredByBack = false) {
+      const m = document.getElementById('detail-modal');
+      m.style.display = 'none';
+      if (!isTriggeredByBack && window.history.state?.modalOpen) {
+        window.history.back();
+      }
     }
+
+    function switchTab(t, isTriggeredByBack = false) {
+      document.getElementById('main-view').style.display = t === 'home' ? 'block' : 'none';
+      document.getElementById('watchlist-view').style.display = t === 'watchlist' ? 'block' : 'none';
+      document.getElementById('profile-view').style.display = t === 'profile' ? 'block' : 'none';
+
+      document.getElementById('nav-home').classList.toggle('active', t === 'home');
+      document.getElementById('nav-watchlist').classList.toggle('active', t === 'watchlist');
+      document.getElementById('nav-profile').classList.toggle('active', t === 'profile');
+
+      if (t === 'watchlist') renderWatchlist();
+
+      if (!isTriggeredByBack) {
+        if (t !== 'home') {
+          window.history.pushState({ tab: t }, '');
+        } else {
+          window.history.replaceState({ tab: 'home' }, '');
+        }
+      }
+    }
+
+    window.addEventListener('popstate', (e) => {
+      const modal = document.getElementById('detail-modal');
+      if (modal && modal.style.display !== 'none') {
+        closeModal(true);
+        return;
+      }
+      if (e.state && e.state.tab) {
+        switchTab(e.state.tab, true);
+      } else {
+        switchTab('home', true);
+      }
+    });
+
+    window.history.replaceState({ tab: 'home' }, '');
 
     function updateModalUI() {
       if (!activeAnime) return;
       const entry = userLibrary.find(x => x.id === activeAnime.id);
-
       document.getElementById('m-act-watching').classList.toggle('active', entry?.status === 'WATCHING');
       document.getElementById('m-act-wl').classList.toggle('active', entry?.status === 'PLANNING');
       document.getElementById('m-act-wat').classList.toggle('active', entry?.status === 'COMPLETED');
+      document.getElementById('m-ep-counter').innerText = `${entry?.episodes_watched || 0} / ${activeAnime.episodes || '?'} Ep`;
+      document.getElementById('m-score-display').innerText = entry?.user_score ? `⭐ ${entry.user_score} / 10` : '⭐ Tap to Rate';
+      document.getElementById('m-fav-btn').classList.toggle('fav-active', !!entry?.is_favorite);
+    }
 
-      const watched = entry?.episodes_watched || 0;
-      const total = activeAnime.episodes || '?';
-      document.getElementById('m-ep-counter').innerText = `${watched} / ${total} Ep (Tap to edit)`;
-
-      const scr = entry?.user_score;
-      document.getElementById('m-score-display').innerText = scr ? `⭐ ${scr.toFixed(1)} / 10` : '⭐ No Score (Tap to Rate)';
-
-      const favBtn = document.getElementById('m-fav-btn');
-      favBtn.classList.toggle('fav-active', !!entry?.is_favorite);
+    async function toggleTrackingCategory(cat) {
+      const idx = userLibrary.findIndex(x => x.id === activeAnime.id);
+      if (idx > -1) {
+        if (userLibrary[idx].status === cat) userLibrary.splice(idx, 1);
+        else userLibrary[idx].status = cat;
+      } else {
+        userLibrary.push({ ...activeAnime, status: cat, episodes_watched: 0, user_score: 0 });
+      }
+      await persistLibrary(userLibrary);
+      updateModalUI();
     }
 
     async function toggleActiveFavorite() {
-      if (!activeAnime) return;
       let entry = userLibrary.find(x => x.id === activeAnime.id);
-
-      if (!entry) {
-        entry = { ...activeAnime, status: 'PLANNING', episodes_watched: 0, user_score: 0, is_favorite: true };
-        userLibrary.push(entry);
-      } else {
-        entry.is_favorite = !entry.is_favorite;
-      }
-
-      await persistLibrary(userLibrary);
-      updateModalUI();
-    }
-
-    async function adjustActiveScore(delta) {
-      if (!activeAnime) return;
-      let entry = userLibrary.find(x => x.id === activeAnime.id);
-
-      if (!entry) {
-        entry = { ...activeAnime, status: 'WATCHING', episodes_watched: 0, user_score: Math.max(1, Math.min(10, 5 + delta)), is_favorite: false };
-        userLibrary.push(entry);
-      } else {
-        const current = entry.user_score || 5;
-        entry.user_score = Math.max(1, Math.min(10, parseFloat((current + delta).toFixed(1))));
-      }
-
-      await persistLibrary(userLibrary);
-      updateModalUI();
-    }
-
-    async function promptCustomScore() {
-      if (!activeAnime) return;
-      let entry = userLibrary.find(x => x.id === activeAnime.id);
-      const current = entry?.user_score || 8.0;
-
-      const input = prompt("Enter your personal score (1 to 10):", current);
-      if (input === null) return;
-
-      const num = parseFloat(input);
-      if (isNaN(num) || num < 1 || num > 10) {
-        alert("Please enter a valid rating between 1 and 10.");
-        return;
-      }
-
-      if (!entry) {
-        entry = { ...activeAnime, status: 'WATCHING', episodes_watched: 0, user_score: num, is_favorite: false };
-        userLibrary.push(entry);
-      } else {
-        entry.user_score = num;
-      }
-
-      await persistLibrary(userLibrary);
-      updateModalUI();
-    }
-
-    async function toggleTrackingCategory(targetCategory) {
-      const idx = userLibrary.findIndex(x => x.id === activeAnime.id);
-
-      if (idx > -1) {
-        if (userLibrary[idx].status === targetCategory) {
-          userLibrary.splice(idx, 1);
-        } else {
-          userLibrary[idx].status = targetCategory;
-          if (targetCategory === 'COMPLETED' && activeAnime.episodes) {
-            userLibrary[idx].episodes_watched = activeAnime.episodes;
-          }
-        }
-      } else {
-        const fullEps = (targetCategory === 'COMPLETED' && activeAnime.episodes) ? activeAnime.episodes : 0;
-        userLibrary.push({ ...activeAnime, status: targetCategory, episodes_watched: fullEps, user_score: 0, is_favorite: false });
-      }
-
-      await persistLibrary(userLibrary);
-      updateModalUI();
-    }
-
-    async function promptCustomEpisode() {
-      if (!activeAnime) return;
-      let entry = userLibrary.find(x => x.id === activeAnime.id);
-      const total = activeAnime.episodes || 9999;
-      const current = entry?.episodes_watched || 0;
-
-      const input = prompt(`Enter watched episode number (Max ${activeAnime.episodes || 'any'}):`, current);
-      if (input === null) return;
-
-      const num = parseInt(input);
-      if (isNaN(num) || num < 0) {
-        alert("Please enter a valid number.");
-        return;
-      }
-
-      const clamped = Math.min(total, num);
-
-      if (!entry) {
-        entry = { ...activeAnime, status: 'WATCHING', episodes_watched: clamped, user_score: 0, is_favorite: false };
-        userLibrary.push(entry);
-      } else {
-        entry.episodes_watched = clamped;
-        if (activeAnime.episodes && clamped >= activeAnime.episodes) {
-          entry.status = 'COMPLETED';
-        } else {
-          entry.status = 'WATCHING';
-        }
-      }
-
+      if (!entry) { entry = { ...activeAnime, status: 'PLANNING', is_favorite: true }; userLibrary.push(entry); }
+      else { entry.is_favorite = !entry.is_favorite; }
       await persistLibrary(userLibrary);
       updateModalUI();
     }
 
     async function adjustActiveEp(delta) {
       let entry = userLibrary.find(x => x.id === activeAnime.id);
-
-      if (!entry) {
-        entry = { ...activeAnime, status: 'WATCHING', episodes_watched: 0, user_score: 0, is_favorite: false };
-        userLibrary.push(entry);
-      }
-
+      if (!entry) { entry = { ...activeAnime, status: 'WATCHING', episodes_watched: 0 }; userLibrary.push(entry); }
       entry.episodes_watched = Math.max(0, (entry.episodes_watched || 0) + delta);
-      if (activeAnime.episodes && entry.episodes_watched >= activeAnime.episodes) {
-        entry.status = 'COMPLETED';
-      } else {
-        entry.status = 'WATCHING';
-      }
-
       await persistLibrary(userLibrary);
       updateModalUI();
     }
 
-    function openTrailer() {
-      if (activeAnime?.trailer?.site === 'youtube') {
-        window.open(`https://www.youtube.com/watch?v=${activeAnime.trailer.id}`, '_blank');
-      } else {
-        alert('Trailer not available for this anime.');
+    async function adjustActiveScore(delta) {
+      let entry = userLibrary.find(x => x.id === activeAnime.id);
+      if (!entry) { entry = { ...activeAnime, status: 'WATCHING', user_score: 5 }; userLibrary.push(entry); }
+      entry.user_score = Math.max(1, Math.min(10, (entry.user_score || 5) + delta));
+      await persistLibrary(userLibrary);
+      updateModalUI();
+    }
+
+    async function promptCustomEpisode() {
+      const num = parseInt(prompt("Enter episode watched:"));
+      if (!isNaN(num)) {
+        let entry = userLibrary.find(x => x.id === activeAnime.id);
+        if (!entry) { entry = { ...activeAnime, status: 'WATCHING' }; userLibrary.push(entry); }
+        entry.episodes_watched = num;
+        await persistLibrary(userLibrary);
+        updateModalUI();
       }
     }
 
-    function shareCurrentAnime() {
-      const title = activeAnime?.title?.english || activeAnime?.title?.romaji || 'Anime';
-      if (navigator.share) {
-        navigator.share({ title: `Otaku Vault - ${title}`, url: window.location.href }).catch(() => {});
-      } else {
-        navigator.clipboard.writeText(window.location.href);
-        alert('Anime link copied to clipboard!');
+    async function promptCustomScore() {
+      const num = parseFloat(prompt("Rating (1-10):"));
+      if (!isNaN(num) && num >= 1 && num <= 10) {
+        let entry = userLibrary.find(x => x.id === activeAnime.id);
+        if (!entry) { entry = { ...activeAnime, status: 'WATCHING' }; userLibrary.push(entry); }
+        entry.user_score = num;
+        await persistLibrary(userLibrary);
+        updateModalUI();
       }
+    }
+
+    function openTrailer() {
+      if (activeAnime?.trailer?.site === 'youtube') window.open(`https://www.youtube.com/watch?v=${activeAnime.trailer.id}`, '_blank');
+      else alert('Trailer unavailable.');
+    }
+
+    function shareCurrentAnime() {
+      if (navigator.share) navigator.share({ title: activeAnime?.title?.english, url: window.location.href });
+      else alert('Link copied!');
     }
 
     async function quickSave(e, id) {
       e.stopPropagation();
-      const target = animeCache[id] || { id };
       const idx = userLibrary.findIndex(x => x.id === id);
-
-      if (idx > -1) {
-        userLibrary.splice(idx, 1);
-        e.currentTarget.classList.remove('saved');
-      } else {
-        userLibrary.push({ ...target, status: 'PLANNING', episodes_watched: 0, user_score: 0, is_favorite: false });
-        e.currentTarget.classList.add('saved');
-      }
+      if (idx > -1) { userLibrary.splice(idx, 1); e.currentTarget.classList.remove('saved'); }
+      else { userLibrary.push({ ...(animeCache[id] || { id }), status: 'PLANNING' }); e.currentTarget.classList.add('saved'); }
       await persistLibrary(userLibrary);
     }
 
@@ -1388,33 +993,6 @@
       document.getElementById('stat-watching').innerText = userLibrary.filter(x => x.status === 'WATCHING').length;
       document.getElementById('stat-watched').innerText = userLibrary.filter(x => x.status === 'COMPLETED').length;
       document.getElementById('stat-eps').innerText = userLibrary.reduce((acc, c) => acc + (c.episodes_watched || 0), 0);
-    }
-
-    function renderFavoritesShowcase() {
-      const favWrap = document.getElementById('fav-showcase-wrap');
-      const favRow = document.getElementById('fav-showcase-row');
-      const favs = userLibrary.filter(x => x.is_favorite);
-
-      if (!favs.length) {
-        favWrap.style.display = 'none';
-        return;
-      }
-
-      favWrap.style.display = 'block';
-      favRow.innerHTML = '';
-      favs.forEach(item => {
-        const title = item.title?.english || item.title?.romaji || 'Anime';
-        const img = item.coverImage?.large || item.coverImage?.extraLarge || '';
-        const card = document.createElement('div');
-        card.className = 'fav-card';
-        card.innerHTML = `
-          <img src="${img}" alt="${title}">
-          <div class="fav-badge">❤️</div>
-          <div class="fav-card-title">${title}</div>
-        `;
-        card.onclick = () => openModal(item);
-        favRow.appendChild(card);
-      });
     }
 
     function filterWatchlistTab(tab, btn) {
@@ -1426,36 +1004,23 @@
 
     function renderWatchlist() {
       const c = document.getElementById('watchlist-container');
-      const filtered = userLibrary.filter(item => {
-        if (currentWlTab === 'ALL') return true;
-        return item.status === currentWlTab;
-      });
-
-      c.innerHTML = filtered.length ? '' : `<div style="color:var(--text-muted); padding:20px;">No anime found in this category.</div>`;
+      const filtered = userLibrary.filter(item => (currentWlTab === 'ALL' || item.status === currentWlTab));
+      c.innerHTML = filtered.length ? '' : `<div style="color:var(--text-muted); padding:20px;">No anime in this category.</div>`;
       filtered.forEach(item => c.appendChild(createCard(item)));
     }
 
-    function switchTab(t) {
-      document.getElementById('main-view').style.display = t === 'home' ? 'block' : 'none';
-      document.getElementById('watchlist-view').style.display = t === 'watchlist' ? 'block' : 'none';
-      document.getElementById('profile-view').style.display = t === 'profile' ? 'block' : 'none';
-
-      document.getElementById('nav-home').classList.toggle('active', t === 'home');
-      document.getElementById('nav-watchlist').classList.toggle('active', t === 'watchlist');
-      document.getElementById('nav-profile').classList.toggle('active', t === 'profile');
-
-      if (t === 'watchlist') renderWatchlist();
-      if (t === 'profile') renderFavoritesShowcase();
-    }
-
     window.addEventListener("firebase-initialized", () => {
-      window.otakuFirebase.onAuth(async (user) => {
+      window.otakuFirebase.onAuth((user) => {
         activeUser = user;
-        await refreshUserUI();
+        refreshUserUI();
       });
     });
 
+    userLibrary = getLocalBackup();
+    const storedKey = localStorage.getItem('ov_sync_key');
+    if (storedKey) document.getElementById('sync-key-input').value = storedKey;
     refreshUserUI();
+    updateGreeting();
     loadCarousels();
   </script>
 </body>

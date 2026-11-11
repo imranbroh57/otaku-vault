@@ -2,7 +2,7 @@
 
 An ultra-lightweight, standalone anime tracking web application built with **HTML5, Vanilla CSS, JavaScript**, and powered by the **AniList GraphQL API** & **Firebase**.
 
-🌐 **Live Demo:** [https://imranbroh57.github.io/movievaultapp/](https://imranbroh57.github.io/movievaultapp/)
+🌐 **Live Demo:** [https://imranbroh57.github.io/otaku-vault/]
 
 ---
 

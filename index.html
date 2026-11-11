@@ -255,14 +255,13 @@
     .score-display-btn { flex: 1; background: var(--card); border: 1px solid var(--border); padding: 8px 12px; border-radius: 10px; text-align: center; font-size: 0.95rem; font-weight: 800; color: var(--accent); cursor: pointer; }
     .score-btn { background: var(--surface); border: 1px solid var(--border); color: #fff; font-weight: 800; width: 38px; height: 38px; border-radius: 10px; cursor: pointer; }
   </style>
-  <script src="sync.js"></script>
 </head>
 <body>
 
   <!-- Top Bar -->
   <header class="top-bar">
     <div class="brand" onclick="switchTab('home')">
-      <img src="icon.png" class="brand-icon-circle" alt="Otaku Vault Logo">
+      <img src="icon.png" class="brand-icon-circle" alt="Otaku Vault Logo" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3135/3135715.png'">
       <div class="brand-title">OTAKU <span>VAULT</span></div>
     </div>
     <div class="top-actions">
@@ -486,12 +485,18 @@
         if (user) {
           activeUser = user;
           const cloudData = await window.otakuFirebase.loadVault(user.uid);
-          if (cloudData && Array.isArray(cloudData)) {
-            userLibrary = cloudData;
+          if (cloudData && Array.isArray(cloudData) && cloudData.length) {
+            const merged = mergeVaults(cloudData, userLibrary);
+            userLibrary = merged;
             localStorage.setItem('ov_offline_library', JSON.stringify(userLibrary));
+            if (merged.length !== cloudData.length) {
+              await window.otakuFirebase.saveVault(user.uid, userLibrary);
+            }
           } else {
+            // Cloud is empty/missing: keep the local library, push it up — never wipe local
             await window.otakuFirebase.saveVault(user.uid, userLibrary);
           }
+          cloudSynced = true;
           refreshUserUI();
           if (currentWlTab) renderWatchlist();
         }
@@ -505,6 +510,7 @@
       if (confirm('Log out from this Google account?')) {
         await window.otakuFirebase.logout();
         activeUser = null;
+        cloudSynced = false;
         refreshUserUI();
       }
     }
@@ -538,7 +544,7 @@
     function openModal(item) {
       activeAnime = item;
       document.getElementById('m-title').innerText = item.title?.english || item.title?.romaji;
-      document.getElementById('m-banner').src = item.bannerImage || item.coverImage?.extraLarge;
+      document.getElementById('m-banner').src = item.bannerImage || item.coverImage?.extraLarge || item.coverImage?.large || 'https://picsum.photos/seed/otaku/800/450';
       document.getElementById('m-tags').innerText = `${item.startDate?.year || ''} • ${item.format || 'TV'}`;
       document.getElementById('m-audio-langs').innerHTML = (checkHasHindiDub(item) ? ['🎙️ Hindi Dub', '🇯🇵 Japanese (Sub)', '🇺🇸 English Dub'] : ['🇯🇵 Japanese (Sub)', '🇺🇸 English Dub']).map(t => `<span class="lang-pill">${t}</span>`).join('');
       document.getElementById('m-genres').innerHTML = (item.genres || []).map(g => `<span class="lang-pill">${g}</span>`).join('');
@@ -582,7 +588,7 @@
     window.addEventListener('popstate', (e) => {
       const modal = document.getElementById('detail-modal');
       // ১. মোডাল খোলা থাকলে শুধু মোডাল বন্ধ হবে
-      if (modal && modal.style.display !== 'none') {
+      if (modal && modal.style.display === 'flex') {
         closeModal(true);
         return;
       }
@@ -615,13 +621,24 @@
       return JSON.parse(localStorage.getItem('ov_offline_library') || '[]');
     }
 
+    let vaultSaveTimer = null;
+    let cloudSynced = false; // true only after the cloud vault has been loaded/merged this session
     async function persistLibrary(list) {
       userLibrary = list;
       localStorage.setItem('ov_offline_library', JSON.stringify(list));
-      if (activeUser && window.otakuFirebase) {
-        window.otakuFirebase.saveVault(activeUser.uid, list);
+      if (activeUser && window.otakuFirebase && cloudSynced) {
+        clearTimeout(vaultSaveTimer);
+        vaultSaveTimer = setTimeout(() => {
+          window.otakuFirebase.saveVault(activeUser.uid, userLibrary);
+        }, 900);
       }
       updateCounts();
+    }
+
+    // Merge cloud + local by id (cloud wins on conflicts, local-only items are kept)
+    function mergeVaults(cloudList, localList) {
+      const localOnly = localList.filter(l => !cloudList.some(c => c.id === l.id));
+      return [...cloudList, ...localOnly];
     }
 
     function updateGreeting() {
@@ -646,7 +663,9 @@
       const res = await fetch('https://graphql.anilist.co', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query, variables })
       });
+      if (!res.ok) throw new Error('AniList HTTP ' + res.status);
       const data = await res.json();
+      if (data.errors) throw new Error('AniList error');
       const list = data.data?.Page?.media || [];
       list.forEach(item => { animeCache[item.id] = item; });
       return list;
@@ -727,7 +746,7 @@
 
     function createCard(item) {
       const title = item.title?.english || item.title?.romaji || 'Untitled';
-      const cleanTitle = title.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+      const cleanTitle = title.replace(/'/g, "\'").replace(/"/g, '&quot;');
       const img = item.coverImage?.extraLarge || item.coverImage?.large || '';
       const score = item.averageScore ? `⭐ ${(item.averageScore / 10).toFixed(1)}` : 'N/A';
       const year = item.startDate?.year || '';
@@ -774,6 +793,10 @@
         popular.forEach(item => popRow.appendChild(createCard(item)));
       } catch (e) {
         console.error(e);
+        const airingRow = document.getElementById('airing-row');
+        if (airingRow && !airingRow.children.length) {
+          airingRow.innerHTML = '<div style="color:var(--text-muted); padding:20px;">লোড করা যায়নি — ইন্টারনেট চেক করে পেজটা reload করো।</div>';
+        }
       }
     }
 
@@ -784,7 +807,13 @@
       if (!q || q.length < 2) { drop.style.display = 'none'; return; }
 
       suggestTimer = setTimeout(async () => {
-        const list = await queryAniList({ search: q });
+        let list;
+        try {
+          list = await queryAniList({ search: q });
+        } catch (e) {
+          drop.style.display = 'none';
+          return;
+        }
         if (!list || list.length === 0) { drop.style.display = 'none'; return; }
         drop.innerHTML = list.slice(0, 6).map(item => `
           <div class="suggestion-item" onclick="selectSuggestion(${item.id})">
@@ -816,11 +845,31 @@
       defSec.style.display = 'none'; dynSec.style.display = 'block';
       dynRow.innerHTML = '<div style="color:var(--text-muted); padding:20px;">Fetching Anime...</div>';
 
-      let items = (type === 'HINDI_DUB') ? 
-        (await queryAniList({ sort: ['POPULARITY_DESC'] })).filter(item => checkHasHindiDub(item)) :
-        await queryAniList({ genre: type, sort: ['POPULARITY_DESC'] });
+      let items = [];
+      try {
+        if (type === 'HINDI_DUB') {
+          items = (await queryAniList({ sort: ['POPULARITY_DESC'] })).filter(item => checkHasHindiDub(item));
+        } else if (type === 'SEASONAL') {
+          const nowD = new Date(); const mo = nowD.getMonth();
+          const season = mo <= 1 ? 'WINTER' : mo <= 4 ? 'SPRING' : mo <= 7 ? 'SUMMER' : mo <= 10 ? 'FALL' : 'WINTER';
+          const seasonYear = nowD.getFullYear() + (mo === 11 ? 1 : 0);
+          items = await queryAniList({ season, seasonYear, sort: ['POPULARITY_DESC'] });
+        } else if (type === 'TOP_RATED') {
+          items = await queryAniList({ sort: ['SCORE_DESC'] });
+        } else {
+          items = await queryAniList({ genre: type, sort: ['POPULARITY_DESC'] });
+        }
+      } catch (e) {
+        dynRow.innerHTML = '<div style="color:var(--text-muted); padding:20px; cursor:pointer;">লোড করা যায়নি — আবার চেষ্টা করতে ট্যাপ করো।</div>';
+        dynRow.firstChild.onclick = () => applyCustomFilter(type, btn);
+        return;
+      }
 
       dynRow.innerHTML = '';
+      if (!items.length) {
+        dynRow.innerHTML = '<div style="color:var(--text-muted); padding:20px;">কিছু পাওয়া যায়নি।</div>';
+        return;
+      }
       items.forEach(item => dynRow.appendChild(createCard(item)));
     }
 
@@ -876,7 +925,8 @@
       if (!isNaN(num)) {
         let entry = userLibrary.find(x => x.id === activeAnime.id);
         if (!entry) { entry = { ...activeAnime, status: 'WATCHING' }; userLibrary.push(entry); }
-        entry.episodes_watched = num;
+        const maxEp = activeAnime.episodes || 9999;
+        entry.episodes_watched = Math.max(0, Math.min(maxEp, num));
         await persistLibrary(userLibrary);
         updateModalUI();
       }
@@ -898,9 +948,16 @@
       else alert('Trailer unavailable.');
     }
 
-    function shareCurrentAnime() {
-      if (navigator.share) navigator.share({ title: activeAnime?.title?.english, url: window.location.href });
-      else alert('Link copied!');
+    async function shareCurrentAnime() {
+      const shareTitle = activeAnime?.title?.english || activeAnime?.title?.romaji || 'Anime';
+      if (navigator.share) {
+        try { await navigator.share({ title: shareTitle, url: window.location.href }); } catch (e) {}
+      } else if (navigator.clipboard) {
+        try { await navigator.clipboard.writeText(window.location.href); alert('Link copied!'); }
+        catch (e) { alert('Copy করা যায়নি।'); }
+      } else {
+        alert('এই ব্রাউজারে share সাপোর্ট নেই।');
+      }
     }
 
     async function quickSave(e, id) {
@@ -933,9 +990,30 @@
     }
 
     window.addEventListener("firebase-initialized", () => {
-      window.otakuFirebase.onAuth((user) => {
+      window.otakuFirebase.onAuth(async (user) => {
         activeUser = user;
         refreshUserUI();
+        if (!user) { cloudSynced = false; return; }
+        if (cloudSynced) return;
+        try {
+          const cloudData = await window.otakuFirebase.loadVault(user.uid);
+          if (cloudData && Array.isArray(cloudData) && cloudData.length) {
+            const merged = mergeVaults(cloudData, userLibrary);
+            userLibrary = merged;
+            localStorage.setItem('ov_offline_library', JSON.stringify(userLibrary));
+            if (merged.length !== cloudData.length) {
+              await window.otakuFirebase.saveVault(user.uid, userLibrary);
+            }
+            renderWatchlist();
+          } else if (userLibrary.length) {
+            await window.otakuFirebase.saveVault(user.uid, userLibrary);
+          }
+          cloudSynced = true;
+          refreshUserUI();
+          updateCounts();
+        } catch (e) {
+          console.error('Cloud vault auto-load failed:', e);
+        }
       });
     });
 
@@ -943,7 +1021,13 @@
     refreshUserUI();
     updateGreeting();
     loadCarousels();
+
+    // Service worker (offline / PWA) — sw.js must sit next to index.html
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch((e) => console.warn('SW register failed:', e));
+      });
+    }
   </script>
 </body>
 </html>
-

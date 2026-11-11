@@ -254,6 +254,11 @@
     .score-control-wrap { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
     .score-display-btn { flex: 1; background: var(--card); border: 1px solid var(--border); padding: 8px 12px; border-radius: 10px; text-align: center; font-size: 0.95rem; font-weight: 800; color: var(--accent); cursor: pointer; }
     .score-btn { background: var(--surface); border: 1px solid var(--border); color: #fff; font-weight: 800; width: 38px; height: 38px; border-radius: 10px; cursor: pointer; }
+    /* Currently Watching + countdown (features update) */
+    .cw-count-chip { position:absolute; top:8px; left:8px; background:rgba(10,9,8,.85); color:var(--accent); font-size:.6rem; font-weight:700; padding:4px 8px; border-radius:999px; border:1px solid var(--accent); z-index:3; white-space:nowrap; }
+    .cw-progress-track { height:5px; background:rgba(255,255,255,.16); border-radius:99px; margin-top:6px; overflow:hidden; }
+    .cw-progress-fill { height:100%; background:var(--accent); border-radius:99px; }
+    .cw-plus-btn { position:absolute; bottom:8px; right:8px; width:28px; height:28px; border-radius:50%; background:var(--accent); color:#141310; font-size:1.05rem; font-weight:800; display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:3; box-shadow:0 2px 8px rgba(0,0,0,.45); }
   </style>
 </head>
 <body>
@@ -326,6 +331,11 @@
     </div>
 
     <div id="default-sections">
+      <div id="cw-section" style="display:none;">
+        <div class="section-head"><div class="section-title">▶ Currently Watching</div></div>
+        <div class="carousel-row" id="cw-row"></div>
+      </div>
+
       <div class="section-head"><div class="section-title">Airing Today / Schedule</div></div>
       <div class="carousel-row" id="schedule-row"><div style="color:var(--text-muted); padding:20px;">Loading Schedule Anime...</div></div>
 
@@ -363,6 +373,12 @@
         <div><h3 id="stat-watching" style="font-size:1.2rem; font-weight:800; color:var(--accent);">0</h3><p style="font-size:0.68rem; color:var(--text-muted);">Watching</p></div>
         <div><h3 id="stat-watched" style="font-size:1.2rem; font-weight:800; color:var(--accent);">0</h3><p style="font-size:0.68rem; color:var(--text-muted);">Completed</p></div>
         <div><h3 id="stat-eps" style="font-size:1.2rem; font-weight:800; color:var(--accent);">0</h3><p style="font-size:0.68rem; color:var(--text-muted);">Episodes</p></div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-top:14px; padding-top:14px; border-top:1px solid var(--border-subtle);">
+        <div><h3 id="stat-hours" style="font-size:1.2rem; font-weight:800; color:var(--accent);">0h</h3><p style="font-size:0.68rem; color:var(--text-muted);">Hours Watched</p></div>
+        <div><h3 id="stat-avgscore" style="font-size:1.2rem; font-weight:800; color:var(--accent);">—</h3><p style="font-size:0.68rem; color:var(--text-muted);">Avg Score</p></div>
+        <div><h3 id="stat-favgenre" style="font-size:1rem; font-weight:800; color:var(--accent);">—</h3><p style="font-size:0.68rem; color:var(--text-muted);">Top Genre</p></div>
       </div>
     </div>
 
@@ -633,6 +649,7 @@
         }, 900);
       }
       updateCounts();
+      renderWatchingSection();
     }
 
     // Merge cloud + local by id (cloud wins on conflicts, local-only items are kept)
@@ -654,7 +671,7 @@
           Page(page: 1, perPage: 16) {
             media(search: $search, sort: $sort, status: $status, genre: $genre, season: $season, seasonYear: $seasonYear, type: ANIME, isAdult: false) {
               id title { english romaji } coverImage { large extraLarge } bannerImage
-              averageScore format episodes status description(asHtml: false) genres
+              averageScore format episodes status description(asHtml: false) genres duration nextAiringEpisode { episode airingAt }
               startDate { year } trailer { id site }
             }
           }
@@ -684,7 +701,7 @@
             airingSchedules(airingAt_greater: $airStart, airingAt_lesser: $airEnd) {
               episode media {
                 id title { english romaji } coverImage { large extraLarge } bannerImage
-                averageScore format episodes status description(asHtml: false) genres startDate { year } trailer { id site }
+                averageScore format episodes status description(asHtml: false) genres duration nextAiringEpisode { episode airingAt } startDate { year } trailer { id site }
               }
             }
           }
@@ -973,6 +990,17 @@
       document.getElementById('stat-watching').innerText = userLibrary.filter(x => x.status === 'WATCHING').length;
       document.getElementById('stat-watched').innerText = userLibrary.filter(x => x.status === 'COMPLETED').length;
       document.getElementById('stat-eps').innerText = userLibrary.reduce((acc, c) => acc + (c.episodes_watched || 0), 0);
+      // Extended stats (features update)
+      const totalMins = userLibrary.reduce((acc, c) => acc + (c.episodes_watched || 0) * (c.duration || 24), 0);
+      const hrsEl = document.getElementById('stat-hours');
+      if (hrsEl) hrsEl.innerText = totalMins >= 600 ? Math.round(totalMins / 60) + 'h' : (Math.round(totalMins / 6) / 10) + 'h';
+      const scored = userLibrary.filter(x => (x.user_score || 0) > 0);
+      const avgEl = document.getElementById('stat-avgscore');
+      if (avgEl) avgEl.innerText = scored.length ? '⭐ ' + (scored.reduce((a, c) => a + c.user_score, 0) / scored.length).toFixed(1) : '—';
+      const genreCount = {};
+      userLibrary.forEach(x => (x.genres || []).forEach(g => { genreCount[g] = (genreCount[g] || 0) + 1; }));
+      const genreEl = document.getElementById('stat-favgenre');
+      if (genreEl) genreEl.innerText = Object.keys(genreCount).sort((a, b) => genreCount[b] - genreCount[a])[0] || '—';
     }
 
     function filterWatchlistTab(tab, btn) {
@@ -980,6 +1008,120 @@
       document.querySelectorAll('#watchlist-view .chip').forEach(c => c.classList.remove('active'));
       btn.classList.add('active');
       renderWatchlist();
+    }
+
+    // ===== Features update: Currently Watching, next-episode countdown, airing refresh =====
+    function formatCountdown(airingAtSec) {
+      let diff = Math.max(0, Math.floor(airingAtSec - Date.now() / 1000));
+      const d = Math.floor(diff / 86400); diff %= 86400;
+      const h = Math.floor(diff / 3600); diff %= 3600;
+      const m = Math.floor(diff / 60); const s = diff % 60;
+      const pad = n => String(n).padStart(2, '0');
+      return (d > 0 ? d + 'd ' : '') + pad(h) + 'h ' + pad(m) + 'm ' + pad(s) + 's';
+    }
+
+    function renderWatchingSection() {
+      const sec = document.getElementById('cw-section');
+      const row = document.getElementById('cw-row');
+      if (!sec || !row) return;
+      const watching = userLibrary.filter(x => x.status === 'WATCHING');
+      if (!watching.length) { sec.style.display = 'none'; row.innerHTML = ''; return; }
+      sec.style.display = 'block';
+      row.innerHTML = '';
+      watching.forEach(entry => row.appendChild(createWatchingCard(entry)));
+    }
+
+    function createWatchingCard(entry) {
+      const title = entry.title?.english || entry.title?.romaji || 'Untitled';
+      const cleanTitle = title.replace(/'/g, "\'").replace(/"/g, '&quot;');
+      const img = entry.coverImage?.extraLarge || entry.coverImage?.large || '';
+      const total = entry.episodes || 0;
+      const watched = entry.episodes_watched || 0;
+      const pct = total > 0 ? Math.min(100, Math.round(watched / total * 100)) : 0;
+      const na = entry.nextAiringEpisode;
+      const hasCd = na && na.airingAt && na.airingAt > Date.now() / 1000;
+      const card = document.createElement('div');
+      card.className = 'media-card';
+      card.innerHTML = `
+        <img class="media-thumb" src="${img}" alt="${cleanTitle}" loading="lazy">
+        ${hasCd ? `<div class="cw-count-chip" data-cd="${na.airingAt}" data-ep="${na.episode}">Ep ${na.episode} · ${formatCountdown(na.airingAt)}</div>` : ''}
+        <div class="cw-plus-btn" onclick="cwPlus(event, ${entry.id})" title="Mark next episode watched">+</div>
+        <div class="card-meta-box">
+          <div class="genre-tag-inline">${(entry.genres && entry.genres[0]) || 'Anime'}</div>
+          <div class="media-title" title="${cleanTitle}">${title}</div>
+          <div class="media-subinfo"><span>Ep ${watched} / ${total || '?'}</span><span style="color:var(--accent); font-weight:700;">${total ? pct + '%' : ''}</span></div>
+          <div class="cw-progress-track"><div class="cw-progress-fill" style="width:${pct}%"></div></div>
+        </div>
+      `;
+      card.onclick = (e) => { if (!e.target.closest('.cw-plus-btn')) openModal(entry); };
+      return card;
+    }
+
+    async function cwPlus(e, id) {
+      e.stopPropagation();
+      const entry = userLibrary.find(x => x.id === id);
+      if (!entry) return;
+      const total = entry.episodes || 0;
+      entry.episodes_watched = (entry.episodes_watched || 0) + 1;
+      if (total > 0 && entry.episodes_watched >= total) {
+        entry.episodes_watched = total;
+        entry.status = 'COMPLETED';
+      }
+      await persistLibrary(userLibrary);
+      renderWatchlist();
+    }
+
+    let cdRefreshPending = false;
+    setInterval(() => {
+      document.querySelectorAll('[data-cd]').forEach(el => {
+        const at = parseInt(el.getAttribute('data-cd'), 10);
+        const ep = el.getAttribute('data-ep');
+        if (at > Date.now() / 1000) {
+          el.textContent = `Ep ${ep} · ${formatCountdown(at)}`;
+        } else {
+          el.textContent = `Ep ${ep} aired!`;
+          if (!cdRefreshPending) { cdRefreshPending = true; setTimeout(() => { cdRefreshPending = false; refreshAiringData(); }, 5000); }
+        }
+      });
+    }, 1000);
+
+    let airingRefreshInFlight = false;
+    async function refreshAiringData() {
+      if (!userLibrary.length || airingRefreshInFlight) return;
+      airingRefreshInFlight = true;
+      const ids = userLibrary.map(x => x.id).slice(0, 50);
+      const query = `
+        query ($ids: [Int]) {
+          Page(page: 1, perPage: 50) {
+            media(id_in: $ids, type: ANIME) {
+              id episodes duration genres status nextAiringEpisode { episode airingAt }
+            }
+          }
+        }`;
+      try {
+        const res = await fetch('https://graphql.anilist.co', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query, variables: { ids } })
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const media = data.data?.Page?.media || [];
+        let changed = false;
+        media.forEach(m => {
+          const entry = userLibrary.find(x => x.id === m.id);
+          if (!entry) return;
+          entry.episodes = m.episodes;
+          entry.duration = m.duration;
+          if (m.genres) entry.genres = m.genres;
+          entry.media_status = m.status;
+          entry.nextAiringEpisode = m.nextAiringEpisode || null;
+          changed = true;
+        });
+        if (changed) {
+          await persistLibrary(userLibrary);
+          renderWatchlist();
+        }
+      } catch (e) { /* offline etc. — countdown keeps using saved data */ }
+      finally { airingRefreshInFlight = false; }
     }
 
     function renderWatchlist() {
@@ -1005,6 +1147,7 @@
               await window.otakuFirebase.saveVault(user.uid, userLibrary);
             }
             renderWatchlist();
+            refreshAiringData();
           } else if (userLibrary.length) {
             await window.otakuFirebase.saveVault(user.uid, userLibrary);
           }
@@ -1021,6 +1164,8 @@
     refreshUserUI();
     updateGreeting();
     loadCarousels();
+    renderWatchingSection();
+    refreshAiringData();
 
     // Service worker (offline / PWA) — sw.js must sit next to index.html
     if ('serviceWorker' in navigator) {

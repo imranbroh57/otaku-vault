@@ -1,4 +1,4 @@
-// Otaku Vault Service Worker — v3 (v1.1 fix)
+// Otaku Vault Service Worker — v4 (features update; v3 was the v1.1 fix)
 // v1 never cached anything (caches.match on an always-empty cache) and
 // index.html never registered the worker at all, so offline mode was broken.
 // This version precaches the app shell and uses:
@@ -6,7 +6,7 @@
 //  - network-first with cache fallback for page navigations
 //  - network-only for API calls (AniList / Firebase are POST or cross-origin)
 
-const CACHE_NAME = 'otaku-vault-v3';
+const CACHE_NAME = 'otaku-vault-v4';
 const APP_SHELL = [
   './',
   './index.html',

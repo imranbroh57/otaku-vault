@@ -259,6 +259,21 @@
     .cw-progress-track { height:5px; background:rgba(255,255,255,.16); border-radius:99px; margin-top:6px; overflow:hidden; }
     .cw-progress-fill { height:100%; background:var(--accent); border-radius:99px; }
     .cw-plus-btn { position:absolute; bottom:8px; right:8px; width:28px; height:28px; border-radius:50%; background:var(--accent); color:#141310; font-size:1.05rem; font-weight:800; display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:3; box-shadow:0 2px 8px rgba(0,0,0,.45); }
+    /* Random picker (features update) */
+    .picker-card { background:var(--card); border:1px solid var(--accent); border-radius:18px; padding:16px; margin-bottom:22px; }
+    .picker-head { font-size:1.02rem; font-weight:800; margin-bottom:12px; }
+    .picker-controls { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
+    .picker-genre { background:rgba(255,255,255,.06); color:inherit; border:1px solid var(--border); border-radius:999px; padding:7px 10px; font-size:.78rem; }
+    .picker-btn { width:100%; background:var(--accent); color:#141310; border:none; border-radius:12px; padding:12px; font-size:.95rem; font-weight:800; cursor:pointer; }
+    .picker-btn:disabled { opacity:.6; }
+    .picker-result-inner { display:flex; gap:12px; margin-top:14px; align-items:flex-start; }
+    .picker-result-inner img { width:84px; height:118px; object-fit:cover; border-radius:10px; }
+    .picker-title { font-weight:800; font-size:.95rem; margin-bottom:4px; }
+    .picker-meta { font-size:.75rem; color:var(--text-muted); line-height:1.5; }
+    .picker-actions { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+    .picker-start { background:var(--accent); color:#141310; border:none; border-radius:10px; padding:9px 14px; font-weight:800; font-size:.8rem; cursor:pointer; }
+    .picker-again { background:transparent; color:inherit; border:1px solid var(--border); border-radius:10px; padding:9px 14px; font-weight:700; font-size:.8rem; cursor:pointer; }
+    #picker-msg { margin-top:12px; font-size:.8rem; color:var(--text-muted); }
   </style>
 </head>
 <body>
@@ -331,6 +346,21 @@
     </div>
 
     <div id="default-sections">
+      <div class="picker-card" id="picker-section">
+        <div class="picker-head">🎲 Can't Decide? Get a Random Pick</div>
+        <div class="picker-controls">
+          <button class="chip picker-mode active" onclick="setPickerMode('PLANNING', this)">From Watch Later</button>
+          <button class="chip picker-mode" onclick="setPickerMode('DISCOVER', this)">Discover New</button>
+          <select id="picker-genre" class="picker-genre">
+            <option value="">Any Genre</option>
+            <option>Action</option><option>Adventure</option><option>Comedy</option><option>Drama</option><option>Fantasy</option><option>Romance</option><option>Sci-Fi</option><option>Slice of Life</option><option>Sports</option><option>Supernatural</option><option>Thriller</option>
+          </select>
+        </div>
+        <button class="picker-btn" id="picker-btn" onclick="pickRandom()">🎲 Pick For Me</button>
+        <div id="picker-result" style="display:none;"></div>
+        <div id="picker-msg" style="display:none;"></div>
+      </div>
+
       <div id="cw-section" style="display:none;">
         <div class="section-head"><div class="section-title">▶ Currently Watching</div></div>
         <div class="carousel-row" id="cw-row"></div>
@@ -1122,6 +1152,122 @@
         }
       } catch (e) { /* offline etc. — countdown keeps using saved data */ }
       finally { airingRefreshInFlight = false; }
+    }
+
+    // ===== Features update: Random picker =====
+    let pickerMode = 'PLANNING';
+    let pickerBusy = false;
+    let lastPick = null;
+    let discoverPoolCache = {};
+
+    function setPickerMode(mode, el) {
+      pickerMode = mode;
+      document.querySelectorAll('.picker-mode').forEach(c => c.classList.remove('active'));
+      el.classList.add('active');
+    }
+
+    async function fetchDiscoverPool(genre) {
+      const key = genre || 'ANY';
+      if (discoverPoolCache[key]) return discoverPoolCache[key];
+      const page = 1 + Math.floor(Math.random() * 25);
+      const query = `
+        query ($page: Int, $genre: String) {
+          Page(page: $page, perPage: 24) {
+            media(sort: POPULARITY_DESC, genre: $genre, type: ANIME, isAdult: false) {
+              id title { english romaji } coverImage { large extraLarge } bannerImage
+              averageScore format episodes status description(asHtml: false) genres duration nextAiringEpisode { episode airingAt }
+              startDate { year } trailer { id site }
+            }
+          }
+        }`;
+      const res = await fetch('https://graphql.anilist.co', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query, variables: { page, genre: genre || undefined } })
+      });
+      if (!res.ok) throw new Error('AniList HTTP ' + res.status);
+      const data = await res.json();
+      const list = data.data?.Page?.media || [];
+      list.forEach(item => { animeCache[item.id] = item; });
+      discoverPoolCache[key] = list;
+      return list;
+    }
+
+    async function pickRandom() {
+      if (pickerBusy) return;
+      const genre = document.getElementById('picker-genre').value;
+      const msg = document.getElementById('picker-msg');
+      const result = document.getElementById('picker-result');
+      const btn = document.getElementById('picker-btn');
+      msg.style.display = 'none';
+      let pool = [];
+      try {
+        if (pickerMode === 'PLANNING') {
+          pool = userLibrary.filter(x => x.status === 'PLANNING' && (!genre || (x.genres || []).includes(genre)));
+          if (!pool.length) {
+            result.style.display = 'none';
+            msg.textContent = 'Watch Later list is empty for this choice — add some anime there or try Discover New.';
+            msg.style.display = 'block';
+            return;
+          }
+        } else {
+          btn.disabled = true; btn.textContent = '🎲 Fetching...';
+          pool = await fetchDiscoverPool(genre);
+          if (!pool.length) throw new Error('empty pool');
+        }
+      } catch (e) {
+        msg.textContent = 'Could not fetch right now — check your internet and tap again.';
+        msg.style.display = 'block';
+        btn.disabled = false; btn.textContent = '🎲 Pick For Me';
+        return;
+      }
+      btn.disabled = false; btn.textContent = '🎲 Pick For Me';
+      pickerBusy = true;
+      result.style.display = 'block';
+      const finalPick = pool[Math.floor(Math.random() * pool.length)];
+      let step = 0; const totalSteps = 14;
+      const spin = () => {
+        const item = step === totalSteps - 1 ? finalPick : pool[Math.floor(Math.random() * pool.length)];
+        renderPick(item, step !== totalSteps - 1);
+        step++;
+        if (step < totalSteps) setTimeout(spin, 60 + step * 28);
+        else { lastPick = finalPick; pickerBusy = false; }
+      };
+      spin();
+    }
+
+    function renderPick(item, spinning) {
+      const result = document.getElementById('picker-result');
+      const title = item.title?.english || item.title?.romaji || 'Untitled';
+      const img = item.coverImage?.large || item.coverImage?.extraLarge || '';
+      const score = item.averageScore ? `⭐ ${(item.averageScore / 10).toFixed(1)}` : 'No score';
+      const genres = (item.genres || []).slice(0, 3).join(' · ');
+      const inLib = userLibrary.find(x => x.id === item.id);
+      result.innerHTML = `
+        <div class="picker-result-inner">
+          <img src="${img}" alt="">
+          <div style="flex:1; min-width:0;">
+            <div class="picker-title">${title}</div>
+            <div class="picker-meta">${score} · ${item.startDate?.year || ''} · ${item.episodes ? item.episodes + ' Ep' : 'Ongoing'}<br>${genres}</div>
+            ${spinning ? '' : `
+            <div class="picker-actions">
+              <button class="picker-start" id="picker-start-btn" onclick="pickerStart()">${inLib?.status === 'WATCHING' ? '✓ Already Watching' : '▶ Start Watching'}</button>
+              <button class="picker-again" onclick="pickRandom()">🎲 Again</button>
+            </div>
+            <div class="picker-actions">
+              <button class="picker-again" onclick="openModal(lastPick)">View Details</button>
+            </div>`}
+          </div>
+        </div>`;
+    }
+
+    async function pickerStart() {
+      if (!lastPick) return;
+      const idx = userLibrary.findIndex(x => x.id === lastPick.id);
+      if (idx > -1) userLibrary[idx].status = 'WATCHING';
+      else userLibrary.push({ ...lastPick, status: 'WATCHING', episodes_watched: 0, user_score: 0 });
+      await persistLibrary(userLibrary);
+      renderWatchlist();
+      const b = document.getElementById('picker-start-btn');
+      if (b) b.textContent = '✓ Added to Watching';
     }
 
     function renderWatchlist() {

@@ -274,6 +274,21 @@
     .picker-start { background:var(--accent); color:#141310; border:none; border-radius:10px; padding:9px 14px; font-weight:800; font-size:.8rem; cursor:pointer; }
     .picker-again { background:transparent; color:inherit; border:1px solid var(--border); border-radius:10px; padding:9px 14px; font-weight:700; font-size:.8rem; cursor:pointer; }
     #picker-msg { margin-top:12px; font-size:.8rem; color:var(--text-muted); }
+
+    /* v6: My Zone, catch-up badge, search filters, more, share card */
+    .catchup-badge { position:absolute; top:8px; right:8px; background:#e03131; color:#fff; font-size:.6rem; font-weight:800; padding:4px 8px; border-radius:999px; z-index:3; white-space:nowrap; box-shadow:0 2px 8px rgba(0,0,0,.45); }
+    .catchup-badge-static { background:#e03131; color:#fff; font-size:.62rem; font-weight:800; padding:4px 8px; border-radius:999px; white-space:nowrap; flex-shrink:0; }
+    .zone-sched-item { display:flex; align-items:center; gap:12px; background:var(--card); border:1px solid var(--border); border-radius:14px; padding:10px; margin-bottom:10px; cursor:pointer; }
+    .zone-sched-item img { width:46px; height:64px; object-fit:cover; border-radius:8px; flex-shrink:0; }
+    .zone-sched-title { font-weight:700; font-size:.92rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .zone-sched-sub { color:var(--accent); font-size:.75rem; font-weight:700; margin-top:2px; }
+    .filter-row { display:flex; gap:8px; margin-bottom:14px; }
+    .filter-row select { flex:1; min-width:0; background:var(--card); color:#fff; border:1px solid var(--border); border-radius:10px; padding:9px 6px; font-size:.78rem; font-weight:600; }
+    .more-btn { display:block; margin:18px auto 8px; background:var(--accent); color:#141310; font-weight:800; border:none; padding:13px 34px; border-radius:999px; font-size:.95rem; cursor:pointer; }
+    .more-btn:disabled { opacity:.55; cursor:default; }
+    .share-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.82); z-index:200; display:none; align-items:center; justify-content:center; padding:20px; }
+    .share-modal-box { background:var(--card); border:1px solid var(--border); border-radius:18px; padding:18px; max-width:400px; width:100%; text-align:center; max-height:92vh; overflow:auto; }
+    .share-modal-box img { width:100%; border-radius:12px; }
   </style>
 </head>
 <body>
@@ -303,6 +318,17 @@
       </div>
       <div class="suggestions-dropdown" id="search-suggestions"></div>
     </div>
+
+    <div class="filter-row">
+      <select id="filter-year" onchange="runFilteredSearch()"><option value="">📅 Year: Any</option></select>
+      <select id="filter-format" onchange="runFilteredSearch()">
+        <option value="">🎞 Format: Any</option><option value="TV">TV</option><option value="MOVIE">Movie</option><option value="OVA">OVA</option><option value="ONA">ONA</option><option value="SPECIAL">Special</option>
+      </select>
+      <select id="filter-status" onchange="runFilteredSearch()">
+        <option value="">📺 Status: Any</option><option value="RELEASING">Airing</option><option value="FINISHED">Finished</option><option value="NOT_YET_RELEASED">Upcoming</option>
+      </select>
+    </div>
+
 
     <!-- Weekly Airing Schedule Section -->
     <div class="schedule-bar">
@@ -374,6 +400,10 @@
 
       <div class="section-head" style="margin-top:20px;"><div class="section-title">All-Time Popular</div></div>
       <div class="carousel-row" id="popular-row"><div style="color:var(--text-muted); padding:20px;">Loading Popular Anime...</div></div>
+
+      <div class="section-head" style="margin-top:20px;"><div class="section-title">আরো Anime</div></div>
+      <div class="carousel-row" id="more-row" style="flex-wrap: wrap; gap: 14px;"></div>
+      <button class="more-btn" id="more-btn" onclick="loadMore()">🔽 আরো দেখো</button>
     </div>
   </main>
 
@@ -387,6 +417,18 @@
       <button class="chip" onclick="filterWatchlistTab('COMPLETED', this)">Watched</button>
     </div>
     <div class="carousel-row" id="watchlist-container" style="flex-wrap: wrap; gap: 14px;"></div>
+  </main>
+
+  <!-- My Zone View -->
+  <main class="container" id="zone-view" style="display:none;">
+    <div class="section-head"><div class="section-title">📅 My Schedule</div></div>
+    <div class="chips-row" id="zone-day-chips" style="margin-bottom:14px;"></div>
+    <div id="zone-sched-list"></div>
+
+    <div class="section-head" style="margin-top:22px;"><div class="section-title">❤️ My Favorites</div></div>
+    <div class="carousel-row" id="zone-fav-row"></div>
+
+    <div id="zone-picker-slot" style="margin-top:22px;"></div>
   </main>
 
   <!-- Profile View (Clean Pure Google Sync) -->
@@ -412,6 +454,8 @@
       </div>
     </div>
 
+    <button class="profile-action-btn" onclick="shareStats()" style="width:100%; margin-bottom:12px;">📤 Share My Stats Card</button>
+
     <!-- Google Login Button -->
     <div id="google-auth-box">
       <button type="button" class="google-btn" onclick="handleGoogleSignIn()">
@@ -436,11 +480,24 @@
       <svg fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
       <div>Watchlist</div>
     </div>
+    <div class="nav-item" id="nav-zone" onclick="switchTab('zone')">
+      <svg fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2-2V6z"/></svg>
+      <div>My Zone</div>
+    </div>
     <div class="nav-item" id="nav-profile" onclick="switchTab('profile')">
       <svg fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
       <div>Profile</div>
     </div>
   </nav>
+
+  <!-- Share Stats Modal -->
+  <div class="share-modal-overlay" id="share-modal">
+    <div class="share-modal-box">
+      <img id="share-preview-img" alt="My Stats Card">
+      <button class="more-btn" onclick="downloadShareCard()">⬇️ Download PNG</button>
+      <button class="picker-again" onclick="closeShareModal()" style="margin-top:6px;">Close</button>
+    </div>
+  </div>
 
   <!-- Detail Modal -->
   <div class="modal-overlay" id="detail-modal">
@@ -614,12 +671,15 @@
       document.getElementById('main-view').style.display = t === 'home' ? 'block' : 'none';
       document.getElementById('watchlist-view').style.display = t === 'watchlist' ? 'block' : 'none';
       document.getElementById('profile-view').style.display = t === 'profile' ? 'block' : 'none';
+      document.getElementById('zone-view').style.display = t === 'zone' ? 'block' : 'none';
 
       document.getElementById('nav-home').classList.toggle('active', t === 'home');
       document.getElementById('nav-watchlist').classList.toggle('active', t === 'watchlist');
       document.getElementById('nav-profile').classList.toggle('active', t === 'profile');
+      document.getElementById('nav-zone').classList.toggle('active', t === 'zone');
 
       if (t === 'watchlist') renderWatchlist();
+      if (t === 'zone') renderZoneAll();
 
       if (!isTriggeredByBack) {
         if (t !== 'home') {
@@ -680,6 +740,7 @@
       }
       updateCounts();
       renderWatchingSection();
+      renderZoneAll();
     }
 
     // Merge cloud + local by id (cloud wins on conflicts, local-only items are kept)
@@ -1070,11 +1131,13 @@
       const pct = total > 0 ? Math.min(100, Math.round(watched / total * 100)) : 0;
       const na = entry.nextAiringEpisode;
       const hasCd = na && na.airingAt && na.airingAt > Date.now() / 1000;
+      const behind = behindCount(entry);
       const card = document.createElement('div');
       card.className = 'media-card';
       card.innerHTML = `
         <img class="media-thumb" src="${img}" alt="${cleanTitle}" loading="lazy">
         ${hasCd ? `<div class="cw-count-chip" data-cd="${na.airingAt}" data-ep="${na.episode}">Ep ${na.episode} · ${formatCountdown(na.airingAt)}</div>` : ''}
+        ${behind > 0 ? `<div class="catchup-badge">🔴 ${behind}টি জমেছে</div>` : ''}
         <div class="cw-plus-btn" onclick="cwPlus(event, ${entry.id})" title="Mark next episode watched">+</div>
         <div class="card-meta-box">
           <div class="genre-tag-inline">${(entry.genres && entry.genres[0]) || 'Anime'}</div>
@@ -1270,6 +1333,218 @@
       if (b) b.textContent = '✓ Added to Watching';
     }
 
+
+    // ===== v6: My Zone, catch-up, search filters, stats share, home More =====
+    function behindCount(entry) {
+      const watched = entry.episodes_watched || 0;
+      let aired = null;
+      if (entry.nextAiringEpisode && entry.nextAiringEpisode.episode) aired = entry.nextAiringEpisode.episode - 1;
+      else if (entry.media_status === 'FINISHED' && entry.episodes) aired = entry.episodes;
+      if (aired === null) return 0;
+      return Math.max(0, aired - watched);
+    }
+
+    let zoneDayOffset = 0;
+    function renderZoneAll() { renderZoneSchedule(); renderZoneFavorites(); }
+
+    function renderZoneSchedule() {
+      const chips = document.getElementById('zone-day-chips');
+      const list = document.getElementById('zone-sched-list');
+      if (!chips || !list) return;
+      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      chips.innerHTML = '';
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(); d.setDate(d.getDate() + i);
+        const chip = document.createElement('button');
+        chip.className = 'chip' + (i === zoneDayOffset ? ' active' : '');
+        chip.textContent = i === 0 ? 'Today' : days[d.getDay()];
+        chip.onclick = () => { zoneDayOffset = i; renderZoneSchedule(); };
+        chips.appendChild(chip);
+      }
+      const target = new Date(); target.setDate(target.getDate() + zoneDayOffset);
+      const sameDay = (ts) => { const d = new Date(ts * 1000); return d.getFullYear() === target.getFullYear() && d.getMonth() === target.getMonth() && d.getDate() === target.getDate(); };
+      const mine = userLibrary
+        .filter(x => x.status === 'WATCHING' && x.nextAiringEpisode && x.nextAiringEpisode.airingAt && sameDay(x.nextAiringEpisode.airingAt))
+        .sort((a, b) => a.nextAiringEpisode.airingAt - b.nextAiringEpisode.airingAt);
+      list.innerHTML = '';
+      if (!mine.length) {
+        list.innerHTML = '<div style="color:var(--text-muted); padding:14px;">এই দিনে তোমার Watching লিস্টের কোনো শো আসে না।</div>';
+        return;
+      }
+      mine.forEach(entry => list.appendChild(createZoneSchedItem(entry)));
+    }
+
+    function createZoneSchedItem(entry) {
+      const title = entry.title?.english || entry.title?.romaji || 'Untitled';
+      const img = entry.coverImage?.large || entry.coverImage?.extraLarge || '';
+      const na = entry.nextAiringEpisode;
+      const behind = behindCount(entry);
+      const row = document.createElement('div');
+      row.className = 'zone-sched-item';
+      row.innerHTML = `<img src="${img}" alt=""><div style="flex:1; min-width:0;"><div class="zone-sched-title">${title}</div><div class="zone-sched-sub" data-cd="${na.airingAt}" data-ep="${na.episode}">Ep ${na.episode} · ${formatCountdown(na.airingAt)}</div></div>${behind > 0 ? `<div class="catchup-badge-static">🔴 ${behind}টি জমেছে</div>` : ''}`;
+      row.onclick = () => openModal(entry);
+      return row;
+    }
+
+    function renderZoneFavorites() {
+      const row = document.getElementById('zone-fav-row');
+      if (!row) return;
+      const favs = userLibrary.filter(x => x.is_favorite);
+      row.innerHTML = '';
+      if (!favs.length) {
+        row.innerHTML = '<div style="color:var(--text-muted); padding:14px;">এখনো কোনো ফেভারিট নেই — কোনো anime-র পেজে ♥ চাপলেই এখানে আসবে।</div>';
+        return;
+      }
+      favs.forEach(item => row.appendChild(createCard(item)));
+    }
+
+    function movePickerToZone() {
+      const picker = document.getElementById('picker-section');
+      const slot = document.getElementById('zone-picker-slot');
+      if (picker && slot && picker.parentElement !== slot) slot.appendChild(picker);
+    }
+
+    // --- Search filters + paged AniList query ---
+    const PAGED_QUERY = `
+      query ($search: String, $sort: [MediaSort], $status: MediaStatus, $format: MediaFormat, $sdg: FuzzyDateInt, $sdl: FuzzyDateInt, $page: Int, $perPage: Int) {
+        Page(page: $page, perPage: $perPage) {
+          pageInfo { hasNextPage }
+          media(search: $search, sort: $sort, status: $status, format: $format, startDate_greater: $sdg, startDate_lesser: $sdl, type: ANIME, isAdult: false) {
+            id title { english romaji } coverImage { large extraLarge } bannerImage
+            averageScore format episodes status description(asHtml: false) genres duration nextAiringEpisode { episode airingAt }
+            startDate { year } trailer { id site }
+          }
+        }
+      }`;
+
+    async function queryAniListPaged(variables, page, perPage) {
+      const res = await fetch('https://graphql.anilist.co', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: PAGED_QUERY, variables: { ...variables, page, perPage } })
+      });
+      if (!res.ok) throw new Error('AniList HTTP ' + res.status);
+      const data = await res.json();
+      if (data.errors) throw new Error('AniList error');
+      const pg = data.data?.Page || {};
+      const list = pg.media || [];
+      list.forEach(item => { animeCache[item.id] = item; });
+      return { list, hasNextPage: !!pg.pageInfo?.hasNextPage };
+    }
+
+    function buildFilterYears() {
+      const sel = document.getElementById('filter-year');
+      if (!sel || sel.options.length > 1) return;
+      const nowY = new Date().getFullYear();
+      for (let y = nowY + 1; y >= 1990; y--) {
+        const o = document.createElement('option');
+        o.value = y; o.textContent = y;
+        sel.appendChild(o);
+      }
+    }
+
+    async function runFilteredSearch() {
+      const q = document.getElementById('search-input').value.trim();
+      const year = document.getElementById('filter-year').value;
+      const format = document.getElementById('filter-format').value;
+      const status = document.getElementById('filter-status').value;
+      const dynSec = document.getElementById('dynamic-section');
+      const dynRow = document.getElementById('dynamic-row');
+      const defSec = document.getElementById('default-sections');
+      if (!q && !year && !format && !status) { dynSec.style.display = 'none'; defSec.style.display = 'block'; return; }
+      defSec.style.display = 'none'; dynSec.style.display = 'block';
+      document.getElementById('dynamic-title').innerText = q ? `Results for "${q}"` : 'Filtered Results';
+      dynRow.innerHTML = '<div style="color:var(--text-muted); padding:20px;">Fetching Anime...</div>';
+      const vars = { sort: ['POPULARITY_DESC'] };
+      if (q) vars.search = q;
+      if (format) vars.format = format;
+      if (status) vars.status = status;
+      if (year) { vars.sdg = parseInt(year + '0100', 10); vars.sdl = parseInt(year + '1231', 10); }
+      try {
+        const { list } = await queryAniListPaged(vars, 1, 24);
+        dynRow.innerHTML = '';
+        if (!list.length) { dynRow.innerHTML = '<div style="color:var(--text-muted); padding:20px;">কিছু পাওয়া যায়নি — ফিল্টার বদলে দেখো।</div>'; return; }
+        list.forEach(item => dynRow.appendChild(createCard(item)));
+      } catch (e) {
+        dynRow.innerHTML = '<div style="color:var(--text-muted); padding:20px; cursor:pointer;">লোড করা যায়নি — আবার চেষ্টা করতে ট্যাপ করো।</div>';
+        dynRow.firstChild.onclick = () => runFilteredSearch();
+      }
+    }
+
+    // --- Home bottom: More (continues All-Time Popular: home row = page 1, perPage 16) ---
+    let morePage = 1;
+    let moreBusy = false;
+    let moreDone = false;
+    async function loadMore() {
+      if (moreBusy || moreDone) return;
+      moreBusy = true;
+      const btn = document.getElementById('more-btn');
+      btn.textContent = 'লোড হচ্ছে...'; btn.disabled = true;
+      try {
+        const { list, hasNextPage } = await queryAniListPaged({ sort: ['POPULARITY_DESC'] }, morePage + 1, 16);
+        morePage++;
+        const row = document.getElementById('more-row');
+        list.forEach(item => row.appendChild(createCard(item)));
+        if (!hasNextPage || !list.length) { moreDone = true; btn.textContent = '— আর নেই —'; }
+        else { btn.textContent = '🔽 আরো দেখো'; btn.disabled = false; }
+      } catch (e) {
+        btn.textContent = '🔽 আরো দেখো (আবার চেষ্টা করো)'; btn.disabled = false;
+      } finally { moreBusy = false; }
+    }
+
+    // --- Stats share card (canvas PNG) ---
+    function shareStats() {
+      const name = (document.getElementById('prof-display-name').innerText || 'Guest Explorer').trim();
+      const watching = userLibrary.filter(x => x.status === 'WATCHING').length;
+      const completed = userLibrary.filter(x => x.status === 'COMPLETED').length;
+      const eps = userLibrary.reduce((a, c) => a + (c.episodes_watched || 0), 0);
+      const mins = userLibrary.reduce((a, c) => a + (c.episodes_watched || 0) * (c.duration || 24), 0);
+      const hoursTxt = (Math.round(mins / 6) / 10) + 'h';
+      const gc = {};
+      userLibrary.forEach(x => (x.genres || []).forEach(g => { gc[g] = (gc[g] || 0) + 1; }));
+      const topGenre = Object.keys(gc).sort((a, b) => gc[b] - gc[a])[0] || '—';
+      const cv = document.createElement('canvas');
+      cv.width = 900; cv.height = 1100;
+      const ctx = cv.getContext('2d');
+      ctx.fillStyle = '#0c0c10'; ctx.fillRect(0, 0, 900, 1100);
+      ctx.strokeStyle = '#f5c518'; ctx.lineWidth = 6; ctx.strokeRect(18, 18, 864, 1064);
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#f5c518'; ctx.font = '800 64px Arial, sans-serif';
+      ctx.fillText('OTAKU VAULT', 450, 140);
+      ctx.fillStyle = '#ffffff'; ctx.font = '700 42px Arial, sans-serif';
+      ctx.fillText(name, 450, 215);
+      ctx.fillStyle = '#9a9aa3'; ctx.font = '30px Arial, sans-serif';
+      ctx.fillText('My Anime Journey', 450, 262);
+      const stats = [[String(userLibrary.length), 'Anime Tracked'], [String(watching), 'Watching'], [String(completed), 'Completed'], [String(eps), 'Episodes'], [hoursTxt, 'Hours Watched'], [topGenre, 'Top Genre']];
+      stats.forEach((s, i) => {
+        const x = 450 + (i % 2 === 0 ? -215 : 215);
+        const y = 430 + Math.floor(i / 2) * 205;
+        ctx.fillStyle = '#f5c518'; ctx.font = '800 70px Arial, sans-serif';
+        ctx.fillText(s[0], x, y);
+        ctx.fillStyle = '#9a9aa3'; ctx.font = '30px Arial, sans-serif';
+        ctx.fillText(s[1], x, y + 52);
+      });
+      ctx.fillStyle = '#9a9aa3'; ctx.font = '26px Arial, sans-serif';
+      ctx.fillText('imranbroh57.github.io/otaku-vault', 450, 1025);
+      document.getElementById('share-preview-img').src = cv.toDataURL('image/png');
+      document.getElementById('share-modal').style.display = 'flex';
+    }
+
+    function downloadShareCard() {
+      const a = document.createElement('a');
+      a.href = document.getElementById('share-preview-img').src;
+      a.download = 'otaku-vault-stats.png';
+      a.click();
+    }
+
+    function closeShareModal() { document.getElementById('share-modal').style.display = 'none'; }
+
+    document.getElementById('search-input')?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        document.getElementById('search-suggestions').style.display = 'none';
+        runFilteredSearch();
+      }
+    });
+
     function renderWatchlist() {
       const c = document.getElementById('watchlist-container');
       const filtered = userLibrary.filter(item => (currentWlTab === 'ALL' || item.status === currentWlTab));
@@ -1311,6 +1586,9 @@
     updateGreeting();
     loadCarousels();
     renderWatchingSection();
+    movePickerToZone();
+    buildFilterYears();
+    renderZoneAll();
     refreshAiringData();
 
     // Service worker (offline / PWA) — sw.js must sit next to index.html

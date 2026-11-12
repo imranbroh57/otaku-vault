@@ -209,7 +209,7 @@
 
     .google-btn {
       width: 100%; background: #ffffff; color: #1f1f1f;
-      border: 1px solid #747775; border-radius: 14px; padding: 14px;
+      border: 1px solid #747775; border-radius: 14px; padding: 10px 14px; height: 50px; min-height: 50px; box-sizing: border-box;
       font-weight: 700; font-size: 0.95rem; cursor: pointer;
       display: flex; align-items: center; justify-content: center; gap: 12px;
       margin-top: 16px;
@@ -218,7 +218,7 @@
 
     .profile-action-btn {
       background: var(--surface); border: 1px solid var(--border);
-      color: #fff; padding: 14px 16px; border-radius: 14px;
+      color: #fff; padding: 10px 16px; height: 50px; min-height: 50px; box-sizing: border-box; border-radius: 14px;
       font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 12px;
       cursor: pointer; width: 100%; text-align: center; font-size: 0.9rem; margin-top: 14px;
     }
@@ -297,7 +297,7 @@
 
     /* v8: Contact Developer (3D button + video popup) */
     .dev-contact-btn, .dev-social, .dev-close-btn { cursor: pointer; transform-style: preserve-3d; transition: transform .25s, box-shadow .25s; }
-    .dev-contact-btn { display: inline-flex; align-items: center; gap: 12px; padding: 15px 23px; color: #fff; font-weight: bold; font-size: .95rem; border: 1px solid var(--accent); border-radius: 14px; background: linear-gradient(145deg, #2b2410, #57451a); box-shadow: 0 7px 0 #191204, 0 12px 25px rgba(245,197,24,.25); }
+    .dev-contact-btn { display: flex; width: 100%; height: 50px; min-height: 50px; box-sizing: border-box; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 26px; color: #fff; font-weight: 800; font-size: 1.18rem; border: 1px solid var(--accent); border-radius: 14px; background: linear-gradient(145deg, #2b2410, #57451a); box-shadow: 0 8px 0 #191204, 0 12px 25px rgba(245,197,24,.25); cursor: pointer; }
     .dev-contact-btn:hover { transform: perspective(600px) rotateX(8deg) translateY(-4px); box-shadow: 0 11px 0 #191204, 0 18px 30px rgba(245,197,24,.35); }
     .dev-contact-btn:active, .dev-social:active, .dev-close-btn:active { transform: scale(.93) translateY(4px); box-shadow: 0 2px 0 #191204; }
     .dev-overlay { position: fixed; inset: 0; display: flex; justify-content: center; align-items: center; background: rgba(5,5,15,.62); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); z-index: 3000; opacity: 0; visibility: hidden; perspective: 1200px; transition: .35s; }
@@ -467,7 +467,7 @@
   <main class="container" id="profile-view" style="display:none;">
     <div style="background:var(--card); border:1px solid var(--border); border-radius:20px; padding:26px 20px; text-align:center; margin-bottom:20px;">
       <div id="prof-avatar-wrap" style="width:76px; height:76px; border-radius:50%; background:var(--accent-soft); border:2px solid var(--accent); margin:0 auto 12px; display:flex; align-items:center; justify-content:center; overflow:hidden;">
-        <svg fill="none" viewBox="0 0 24 24" stroke-width="2" style="width:36px; height:36px; stroke:var(--accent);"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+        <img src="icon-512.png" alt="Otaku Vault" style="width:100%; height:100%; object-fit:cover; display:block;">
       </div>
       <h2 id="prof-display-name" style="font-size:1.35rem; font-weight:800;">Guest Explorer</h2>
       <p id="prof-email" style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;">Sign in with Google for Cloud Sync</p>
@@ -487,12 +487,6 @@
     </div>
 
     <button class="profile-action-btn" onclick="shareStats()" style="width:100%; margin-bottom:12px;">📤 Share My Stats Card</button>
-    <div class="section-head" style="margin-top:22px;"><div class="section-title">Developer</div></div>
-    <button id="contactDevBtn" class="dev-contact-btn" onclick="openDevPopup()">
-      <span>⌘</span>
-      <span>Contact Developer</span>
-      <span>↗</span>
-    </button>
 
     <!-- Google Login Button -->
     <div id="google-auth-box">
@@ -505,6 +499,13 @@
     <!-- Logout Button -->
     <button id="logout-btn" class="profile-action-btn danger" onclick="handleGoogleLogout()" style="display:none;">
       Log Out of Google Account
+    </button>
+
+    <div class="section-head" style="margin-top:22px;"><div class="section-title">Developer</div></div>
+    <button id="contactDevBtn" class="dev-contact-btn" onclick="openDevPopup()">
+      <span>⌘</span>
+      <span>Contact Developer</span>
+      <span>↗</span>
     </button>
   </main>
 
@@ -694,13 +695,15 @@
         logoutBtn.style.display = 'block';
         if (activeUser.photoURL) {
           avatarWrap.innerHTML = `<img src="${activeUser.photoURL}" style="width:100%; height:100%; object-fit:cover;">`;
+        } else {
+          avatarWrap.innerHTML = `<img src="icon-512.png" alt="Otaku Vault" style="width:100%; height:100%; object-fit:cover; display:block;">`;
         }
       } else {
         nameEl.innerText = 'Guest Explorer';
         emailEl.innerText = 'Sign in with Google for Cloud Sync';
         authBox.style.display = 'block';
         logoutBtn.style.display = 'none';
-        avatarWrap.innerHTML = `<svg fill="none" viewBox="0 0 24 24" stroke-width="2" style="width:36px; height:36px; stroke:var(--accent);"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>`;
+        avatarWrap.innerHTML = `<img src="icon-512.png" alt="Otaku Vault" style="width:100%; height:100%; object-fit:cover; display:block;">`;
       }
       updateCounts();
     }

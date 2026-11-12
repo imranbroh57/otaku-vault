@@ -294,6 +294,32 @@
     .see-all { color: var(--accent); font-size: .82rem; font-weight: 700; cursor: pointer; white-space: nowrap; }
     .carousel-row.expanded { flex-wrap: wrap; }
     .row-more-btn { display: block; margin: 12px auto 4px; background: transparent; color: var(--accent); border: 1px solid var(--accent); padding: 9px 26px; border-radius: 999px; font-weight: 700; font-size: .85rem; cursor: pointer; }
+
+    /* v8: Contact Developer (3D button + video popup) */
+    .dev-contact-btn, .dev-social, .dev-close-btn { cursor: pointer; transform-style: preserve-3d; transition: transform .25s, box-shadow .25s; }
+    .dev-contact-btn { display: inline-flex; align-items: center; gap: 12px; padding: 15px 23px; color: #fff; font-weight: bold; font-size: .95rem; border: 1px solid var(--accent); border-radius: 14px; background: linear-gradient(145deg, #2b2410, #57451a); box-shadow: 0 7px 0 #191204, 0 12px 25px rgba(245,197,24,.25); }
+    .dev-contact-btn:hover { transform: perspective(600px) rotateX(8deg) translateY(-4px); box-shadow: 0 11px 0 #191204, 0 18px 30px rgba(245,197,24,.35); }
+    .dev-contact-btn:active, .dev-social:active, .dev-close-btn:active { transform: scale(.93) translateY(4px); box-shadow: 0 2px 0 #191204; }
+    .dev-overlay { position: fixed; inset: 0; display: flex; justify-content: center; align-items: center; background: rgba(5,5,15,.62); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); z-index: 3000; opacity: 0; visibility: hidden; perspective: 1200px; transition: .35s; }
+    .dev-overlay.active { opacity: 1; visibility: visible; }
+    .dev-popup { position: relative; overflow: hidden; width: min(280px, 85vw); padding: 22px 18px 16px; border: 1px solid rgba(245,197,24,.45); border-radius: 25px; text-align: center; color: #fff; background: linear-gradient(145deg, #1c1c26, #0a0a12); box-shadow: 0 25px 70px rgba(0,0,0,.6), 0 0 35px rgba(245,197,24,.22); transform: rotateY(35deg) rotateX(15deg) scale(.7); transition: .55s cubic-bezier(.2,.8,.2,1); }
+    .dev-overlay.active .dev-popup { transform: rotateY(0) rotateX(0) scale(1); }
+    .dev-popup-bg { position: absolute; inset: 0; z-index: 0; }
+    .dev-popup-bg video { width: 100%; height: 100%; object-fit: cover; filter: brightness(1.14) saturate(1.2); }
+    .dev-popup-shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(8,8,14,.34), rgba(8,8,14,.53) 55%, rgba(8,8,14,.62)); }
+    .dev-popup-content { position: relative; z-index: 1; }
+    .dev-logo { width: 52px; height: 52px; margin: auto; display: grid; place-items: center; border-radius: 16px; overflow: hidden; background: linear-gradient(135deg, var(--accent), #ffdf6b); box-shadow: 0 8px 0 #4d3d05, 0 15px 30px rgba(245,197,24,.35); }
+    .dev-logo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .dev-popup h2 { margin: 14px 0 4px; font-size: 1.25rem; text-shadow: 0 2px 8px rgba(0,0,0,.85); }
+    .dev-name { color: var(--accent); font-weight: 800; text-shadow: 0 2px 8px rgba(0,0,0,.85); }
+    .dev-popup p { color: #e8e8f2; font-size: 12.5px; line-height: 1.45; margin-top: 6px; text-shadow: 0 1px 6px rgba(0,0,0,.9); }
+    .dev-social-list { display: grid; gap: 10px; margin-top: 18px; }
+    .dev-social { display: flex; align-items: center; gap: 13px; padding: 10px 13px; border-radius: 14px; color: #fff; text-decoration: none; font-weight: 600; font-size: .92rem; background: linear-gradient(145deg, rgba(34,34,48,.98), rgba(15,15,24,.99)); border: 1px solid rgba(245,197,24,.3); box-shadow: 0 5px 0 #05050c, 0 8px 15px rgba(0,0,0,.35); }
+    .dev-social:hover { transform: perspective(500px) rotateX(7deg) translateY(-4px); box-shadow: 0 9px 0 #05050c, 0 15px 25px rgba(245,197,24,.2); border-color: var(--accent); }
+    .dev-social span { font-size: 20px; color: var(--accent); }
+    .dev-social b { margin-left: auto; color: var(--accent); }
+    .dev-close-btn { position: absolute; z-index: 2; top: 12px; right: 13px; width: 32px; height: 32px; border: 1px solid rgba(245,197,24,.35); border-radius: 50%; color: #fff; background: rgba(255,255,255,.08); font-size: 21px; line-height: 1; box-shadow: 0 3px 0 #05050c; }
+    .dev-footer { margin-top: 17px; font-size: 9px; letter-spacing: 3px; color: #d8c98a; text-shadow: 0 1px 6px rgba(0,0,0,.9); }
   </style>
 </head>
 <body>
@@ -461,6 +487,12 @@
     </div>
 
     <button class="profile-action-btn" onclick="shareStats()" style="width:100%; margin-bottom:12px;">📤 Share My Stats Card</button>
+    <div class="section-head" style="margin-top:22px;"><div class="section-title">Developer</div></div>
+    <button id="contactDevBtn" class="dev-contact-btn" onclick="openDevPopup()">
+      <span>⌘</span>
+      <span>Contact Developer</span>
+      <span>↗</span>
+    </button>
 
     <!-- Google Login Button -->
     <div id="google-auth-box">
@@ -497,6 +529,30 @@
   </nav>
 
   <!-- Share Stats Modal -->
+
+  <div class="dev-overlay" id="devOverlay">
+    <div class="dev-popup">
+      <div class="dev-popup-bg">
+        <video id="devBgVideo" muted loop playsinline preload="none" poster="dev-poster.jpg">
+          <source src="dev-bg.mp4" type="video/mp4">
+        </video>
+        <div class="dev-popup-shade"></div>
+      </div>
+      <button class="dev-close-btn" onclick="closeDevPopup()">×</button>
+      <div class="dev-popup-content">
+        <div class="dev-logo"><img src="icon-512.png" alt="Otaku Vault"></div>
+        <h2>Let's Connect</h2>
+        <div class="dev-name">Imran Broh</div>
+        <p>Developer of Otaku Vault<br>Questions, feedback or a bug to report? Reach me here.</p>
+        <div class="dev-social-list">
+          <a href="https://www.facebook.com/imranbroh57" target="_blank" rel="noopener noreferrer" class="dev-social"><span>f</span> Facebook <b>↗</b></a>
+          <a href="https://wa.me/12494593445" target="_blank" rel="noopener noreferrer" class="dev-social"><span>✆</span> WhatsApp <b>↗</b></a>
+          <a href="https://t.me/imran202627" target="_blank" rel="noopener noreferrer" class="dev-social"><span>➤</span> Telegram <b>↗</b></a>
+        </div>
+        <div class="dev-footer">IMRAN BROH · OTAKU VAULT</div>
+      </div>
+    </div>
+  </div>
   <div class="share-modal-overlay" id="share-modal">
     <div class="share-modal-box">
       <img id="share-preview-img" alt="My Stats Card">
@@ -1637,6 +1693,26 @@
       dynBusy = false;
       updateDynMoreBtn();
     }
+
+
+    // --- v8: Contact Developer popup ---
+    function openDevPopup() {
+      const ov = document.getElementById('devOverlay');
+      ov.classList.add('active');
+      const vid = document.getElementById('devBgVideo');
+      if (vid && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        vid.play().catch(() => {});
+      }
+    }
+    function closeDevPopup() {
+      const ov = document.getElementById('devOverlay');
+      ov.classList.remove('active');
+      const vid = document.getElementById('devBgVideo');
+      if (vid) vid.pause();
+    }
+    document.getElementById('devOverlay').addEventListener('click', (e) => {
+      if (e.target.id === 'devOverlay') closeDevPopup();
+    });
 
     // --- Stats share card (canvas PNG) ---
     function shareStats() {

@@ -6,7 +6,7 @@
 //  - network-first with cache fallback for page navigations
 //  - network-only for API calls (AniList / Firebase are POST or cross-origin)
 
-const CACHE_NAME = 'otaku-vault-v8';
+const CACHE_NAME = 'otaku-vault-v9';
 const APP_SHELL = [
   './',
   './index.html',

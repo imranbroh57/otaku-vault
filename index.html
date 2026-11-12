@@ -276,7 +276,7 @@
     #picker-msg { margin-top:12px; font-size:.8rem; color:var(--text-muted); }
 
     /* v6: My Zone, catch-up badge, search filters, more, share card */
-    .catchup-badge { position:absolute; top:8px; right:8px; background:#e03131; color:#fff; font-size:.6rem; font-weight:800; padding:4px 8px; border-radius:999px; z-index:3; white-space:nowrap; box-shadow:0 2px 8px rgba(0,0,0,.45); }
+    .catchup-badge { position:absolute; top:36px; left:8px; background:#e03131; color:#fff; font-size:.6rem; font-weight:800; padding:4px 8px; border-radius:999px; z-index:3; white-space:nowrap; box-shadow:0 2px 8px rgba(0,0,0,.45); }
     .catchup-badge-static { background:#e03131; color:#fff; font-size:.62rem; font-weight:800; padding:4px 8px; border-radius:999px; white-space:nowrap; flex-shrink:0; }
     .zone-sched-item { display:flex; align-items:center; gap:12px; background:var(--card); border:1px solid var(--border); border-radius:14px; padding:10px; margin-bottom:10px; cursor:pointer; }
     .zone-sched-item img { width:46px; height:64px; object-fit:cover; border-radius:8px; flex-shrink:0; }
@@ -289,6 +289,11 @@
     .share-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.82); z-index:200; display:none; align-items:center; justify-content:center; padding:20px; }
     .share-modal-box { background:var(--card); border:1px solid var(--border); border-radius:18px; padding:18px; max-width:400px; width:100%; text-align:center; max-height:92vh; overflow:auto; }
     .share-modal-box img { width:100%; border-radius:12px; }
+
+    /* v7: See all links + small More buttons */
+    .see-all { color: var(--accent); font-size: .82rem; font-weight: 700; cursor: pointer; white-space: nowrap; }
+    .carousel-row.expanded { flex-wrap: wrap; }
+    .row-more-btn { display: block; margin: 12px auto 4px; background: transparent; color: var(--accent); border: 1px solid var(--accent); padding: 9px 26px; border-radius: 999px; font-weight: 700; font-size: .85rem; cursor: pointer; }
   </style>
 </head>
 <body>
@@ -369,6 +374,7 @@
     <div id="dynamic-section" style="display:none; margin-bottom: 24px;">
       <div class="section-head"><div class="section-title" id="dynamic-title">Results</div></div>
       <div class="carousel-row" id="dynamic-row" style="flex-wrap: wrap; gap: 14px;"></div>
+      <button class="row-more-btn" id="dyn-more-btn" style="display:none;" onclick="dynMore()">More ▼</button>
     </div>
 
     <div id="default-sections">
@@ -392,18 +398,18 @@
         <div class="carousel-row" id="cw-row"></div>
       </div>
 
-      <div class="section-head"><div class="section-title">Airing Today / Schedule</div></div>
+      <div class="section-head"><div class="section-title">Airing Today / Schedule</div><span class="see-all" id="seeall-schedule" onclick="toggleSeeAll('schedule')">See all ▶</span></div>
       <div class="carousel-row" id="schedule-row"><div style="color:var(--text-muted); padding:20px;">Loading Schedule Anime...</div></div>
+      <button class="row-more-btn" id="row-more-schedule" style="display:none;" onclick="loadNextRowPage('schedule')">More ▼</button>
 
-      <div class="section-head" style="margin-top:20px;"><div class="section-title">Trending & Airing Now</div></div>
+      <div class="section-head" style="margin-top:20px;"><div class="section-title">Trending & Airing Now</div><span class="see-all" id="seeall-airing" onclick="toggleSeeAll('airing')">See all ▶</span></div>
       <div class="carousel-row" id="airing-row"><div style="color:var(--text-muted); padding:20px;">Loading Airing Anime...</div></div>
+      <button class="row-more-btn" id="row-more-airing" style="display:none;" onclick="loadNextRowPage('airing')">More ▼</button>
 
-      <div class="section-head" style="margin-top:20px;"><div class="section-title">All-Time Popular</div></div>
+      <div class="section-head" style="margin-top:20px;"><div class="section-title">All-Time Popular</div><span class="see-all" id="seeall-popular" onclick="toggleSeeAll('popular')">See all ▶</span></div>
       <div class="carousel-row" id="popular-row"><div style="color:var(--text-muted); padding:20px;">Loading Popular Anime...</div></div>
+      <button class="row-more-btn" id="row-more-popular" style="display:none;" onclick="loadNextRowPage('popular')">More ▼</button>
 
-      <div class="section-head" style="margin-top:20px;"><div class="section-title">আরো Anime</div></div>
-      <div class="carousel-row" id="more-row" style="flex-wrap: wrap; gap: 14px;"></div>
-      <button class="more-btn" id="more-btn" onclick="loadMore()">🔽 আরো দেখো</button>
     </div>
   </main>
 
@@ -819,6 +825,8 @@
       }
     }
 
+    let schedSeenIds = new Set();
+
     function initSchedulePills() {
       const container = document.getElementById('schedule-days-container');
       container.innerHTML = '';
@@ -838,6 +846,12 @@
     }
 
     async function selectScheduleDay(offset, pillEl, dayName) {
+      currentSchedOffset = offset;
+      const sSt = rowPaging.schedule;
+      sSt.page = 1; sSt.done = false; sSt.expanded = false;
+      document.getElementById('schedule-row').classList.remove('expanded');
+      document.getElementById('seeall-schedule').textContent = 'See all ▶';
+      document.getElementById('row-more-schedule').style.display = 'none';
       document.querySelectorAll('#schedule-days-container .day-pill').forEach(p => p.classList.remove('active'));
       pillEl.classList.add('active');
       document.getElementById('sched-active-day-label').innerText = dayName.toUpperCase();
@@ -850,6 +864,7 @@
         return;
       }
       list.forEach(item => schedRow.appendChild(createCard(item)));
+      schedSeenIds = new Set(list.map(x => x.id));
     }
 
     function createCard(item) {
@@ -889,6 +904,7 @@
         const schedRow = document.getElementById('schedule-row');
         schedRow.innerHTML = '';
         initialSched.forEach(item => schedRow.appendChild(createCard(item)));
+        schedSeenIds = new Set(initialSched.map(x => x.id));
 
         const airing = await queryAniList({ status: 'RELEASING', sort: ['POPULARITY_DESC'] });
         const airingRow = document.getElementById('airing-row');
@@ -903,7 +919,7 @@
         console.error(e);
         const airingRow = document.getElementById('airing-row');
         if (airingRow && !airingRow.children.length) {
-          airingRow.innerHTML = '<div style="color:var(--text-muted); padding:20px;">লোড করা যায়নি — ইন্টারনেট চেক করে পেজটা reload করো।</div>';
+          airingRow.innerHTML = '<div style="color:var(--text-muted); padding:20px;">Could not load — check your internet and reload the page.</div>';
         }
       }
     }
@@ -949,36 +965,42 @@
       const dynRow = document.getElementById('dynamic-row');
       const defSec = document.getElementById('default-sections');
 
-      if (type === 'ALL') { dynSec.style.display = 'none'; defSec.style.display = 'block'; return; }
+      if (type === 'ALL') { dynSec.style.display = 'none'; defSec.style.display = 'block'; dynState = null; updateDynMoreBtn(); return; }
       defSec.style.display = 'none'; dynSec.style.display = 'block';
       dynRow.innerHTML = '<div style="color:var(--text-muted); padding:20px;">Fetching Anime...</div>';
 
       let items = [];
       try {
+        let vars;
+        let postFilter = null;
         if (type === 'HINDI_DUB') {
-          items = (await queryAniList({ sort: ['POPULARITY_DESC'] })).filter(item => checkHasHindiDub(item));
+          vars = { sort: ['POPULARITY_DESC'] }; postFilter = 'hindi';
         } else if (type === 'SEASONAL') {
           const nowD = new Date(); const mo = nowD.getMonth();
           const season = mo <= 1 ? 'WINTER' : mo <= 4 ? 'SPRING' : mo <= 7 ? 'SUMMER' : mo <= 10 ? 'FALL' : 'WINTER';
           const seasonYear = nowD.getFullYear() + (mo === 11 ? 1 : 0);
-          items = await queryAniList({ season, seasonYear, sort: ['POPULARITY_DESC'] });
+          vars = { season, seasonYear, sort: ['POPULARITY_DESC'] };
         } else if (type === 'TOP_RATED') {
-          items = await queryAniList({ sort: ['SCORE_DESC'] });
+          vars = { sort: ['SCORE_DESC'] };
         } else {
-          items = await queryAniList({ genre: type, sort: ['POPULARITY_DESC'] });
+          vars = { genre: type, sort: ['POPULARITY_DESC'] };
         }
+        const first = await queryAniListPaged(vars, 1, 16);
+        items = postFilter === 'hindi' ? first.list.filter(checkHasHindiDub) : first.list;
+        dynState = { vars, page: 1, perPage: 16, postFilter, done: !first.hasNextPage };
       } catch (e) {
-        dynRow.innerHTML = '<div style="color:var(--text-muted); padding:20px; cursor:pointer;">লোড করা যায়নি — আবার চেষ্টা করতে ট্যাপ করো।</div>';
+        dynRow.innerHTML = '<div style="color:var(--text-muted); padding:20px; cursor:pointer;">Could not load — tap to try again.</div>';
         dynRow.firstChild.onclick = () => applyCustomFilter(type, btn);
         return;
       }
 
       dynRow.innerHTML = '';
       if (!items.length) {
-        dynRow.innerHTML = '<div style="color:var(--text-muted); padding:20px;">কিছু পাওয়া যায়নি।</div>';
+        dynRow.innerHTML = '<div style="color:var(--text-muted); padding:20px;">Nothing found.</div>';
         return;
       }
       items.forEach(item => dynRow.appendChild(createCard(item)));
+      updateDynMoreBtn();
     }
 
     function updateModalUI() {
@@ -1062,9 +1084,9 @@
         try { await navigator.share({ title: shareTitle, url: window.location.href }); } catch (e) {}
       } else if (navigator.clipboard) {
         try { await navigator.clipboard.writeText(window.location.href); alert('Link copied!'); }
-        catch (e) { alert('Copy করা যায়নি।'); }
+        catch (e) { alert('Could not copy.'); }
       } else {
-        alert('এই ব্রাউজারে share সাপোর্ট নেই।');
+        alert('Sharing is not supported in this browser.');
       }
     }
 
@@ -1137,7 +1159,7 @@
       card.innerHTML = `
         <img class="media-thumb" src="${img}" alt="${cleanTitle}" loading="lazy">
         ${hasCd ? `<div class="cw-count-chip" data-cd="${na.airingAt}" data-ep="${na.episode}">Ep ${na.episode} · ${formatCountdown(na.airingAt)}</div>` : ''}
-        ${behind > 0 ? `<div class="catchup-badge">🔴 ${behind}টি জমেছে</div>` : ''}
+        ${behind > 0 ? `<div class="catchup-badge">🔴 ${behind} behind</div>` : ''}
         <div class="cw-plus-btn" onclick="cwPlus(event, ${entry.id})" title="Mark next episode watched">+</div>
         <div class="card-meta-box">
           <div class="genre-tag-inline">${(entry.genres && entry.genres[0]) || 'Anime'}</div>
@@ -1368,7 +1390,7 @@
         .sort((a, b) => a.nextAiringEpisode.airingAt - b.nextAiringEpisode.airingAt);
       list.innerHTML = '';
       if (!mine.length) {
-        list.innerHTML = '<div style="color:var(--text-muted); padding:14px;">এই দিনে তোমার Watching লিস্টের কোনো শো আসে না।</div>';
+        list.innerHTML = '<div style="color:var(--text-muted); padding:14px;">No shows from your Watching list on this day.</div>';
         return;
       }
       mine.forEach(entry => list.appendChild(createZoneSchedItem(entry)));
@@ -1381,7 +1403,7 @@
       const behind = behindCount(entry);
       const row = document.createElement('div');
       row.className = 'zone-sched-item';
-      row.innerHTML = `<img src="${img}" alt=""><div style="flex:1; min-width:0;"><div class="zone-sched-title">${title}</div><div class="zone-sched-sub" data-cd="${na.airingAt}" data-ep="${na.episode}">Ep ${na.episode} · ${formatCountdown(na.airingAt)}</div></div>${behind > 0 ? `<div class="catchup-badge-static">🔴 ${behind}টি জমেছে</div>` : ''}`;
+      row.innerHTML = `<img src="${img}" alt=""><div style="flex:1; min-width:0;"><div class="zone-sched-title">${title}</div><div class="zone-sched-sub" data-cd="${na.airingAt}" data-ep="${na.episode}">Ep ${na.episode} · ${formatCountdown(na.airingAt)}</div></div>${behind > 0 ? `<div class="catchup-badge-static">🔴 ${behind} behind</div>` : ''}`;
       row.onclick = () => openModal(entry);
       return row;
     }
@@ -1392,7 +1414,7 @@
       const favs = userLibrary.filter(x => x.is_favorite);
       row.innerHTML = '';
       if (!favs.length) {
-        row.innerHTML = '<div style="color:var(--text-muted); padding:14px;">এখনো কোনো ফেভারিট নেই — কোনো anime-র পেজে ♥ চাপলেই এখানে আসবে।</div>';
+        row.innerHTML = '<div style="color:var(--text-muted); padding:14px;">No favorites yet — tap ♥ on any anime and it will show up here.</div>';
         return;
       }
       favs.forEach(item => row.appendChild(createCard(item)));
@@ -1450,7 +1472,7 @@
       const dynSec = document.getElementById('dynamic-section');
       const dynRow = document.getElementById('dynamic-row');
       const defSec = document.getElementById('default-sections');
-      if (!q && !year && !format && !status) { dynSec.style.display = 'none'; defSec.style.display = 'block'; return; }
+      if (!q && !year && !format && !status) { dynSec.style.display = 'none'; defSec.style.display = 'block'; dynState = null; updateDynMoreBtn(); return; }
       defSec.style.display = 'none'; dynSec.style.display = 'block';
       document.getElementById('dynamic-title').innerText = q ? `Results for "${q}"` : 'Filtered Results';
       dynRow.innerHTML = '<div style="color:var(--text-muted); padding:20px;">Fetching Anime...</div>';
@@ -1460,35 +1482,160 @@
       if (status) vars.status = status;
       if (year) { vars.sdg = parseInt(year + '0100', 10); vars.sdl = parseInt(year + '1231', 10); }
       try {
-        const { list } = await queryAniListPaged(vars, 1, 24);
+        const firstRes = await queryAniListPaged(vars, 1, 24);
+        const list = firstRes.list;
+        dynState = { vars, page: 1, perPage: 24, postFilter: null, done: !firstRes.hasNextPage };
         dynRow.innerHTML = '';
-        if (!list.length) { dynRow.innerHTML = '<div style="color:var(--text-muted); padding:20px;">কিছু পাওয়া যায়নি — ফিল্টার বদলে দেখো।</div>'; return; }
+        if (!list.length) { dynRow.innerHTML = '<div style="color:var(--text-muted); padding:20px;">Nothing found — try changing the filters.</div>'; return; }
         list.forEach(item => dynRow.appendChild(createCard(item)));
+        updateDynMoreBtn();
       } catch (e) {
-        dynRow.innerHTML = '<div style="color:var(--text-muted); padding:20px; cursor:pointer;">লোড করা যায়নি — আবার চেষ্টা করতে ট্যাপ করো।</div>';
+        dynRow.innerHTML = '<div style="color:var(--text-muted); padding:20px; cursor:pointer;">Could not load — tap to try again.</div>';
         dynRow.firstChild.onclick = () => runFilteredSearch();
       }
     }
 
-    // --- Home bottom: More (continues All-Time Popular: home row = page 1, perPage 16) ---
-    let morePage = 1;
-    let moreBusy = false;
-    let moreDone = false;
-    async function loadMore() {
-      if (moreBusy || moreDone) return;
-      moreBusy = true;
-      const btn = document.getElementById('more-btn');
-      btn.textContent = 'লোড হচ্ছে...'; btn.disabled = true;
+    // --- v7: See all on home rows + More for the Results grid ---
+    let currentSchedOffset = 0;
+    const rowPaging = {
+      schedule: { page: 1, done: false, busy: false, expanded: false },
+      airing: { page: 1, done: false, busy: false, expanded: false, vars: { status: 'RELEASING', sort: ['POPULARITY_DESC'] } },
+      popular: { page: 1, done: false, busy: false, expanded: false, vars: { sort: ['POPULARITY_DESC'] } }
+    };
+
+    async function fetchAiringSchedulePaged(dayOffset, page) {
+      const startOfDay = new Date();
+      startOfDay.setDate(startOfDay.getDate() + dayOffset);
+      startOfDay.setHours(0, 0, 0, 0);
+      const airStart = Math.floor(startOfDay.getTime() / 1000);
+      const airEnd = airStart + 86400;
+      const query = `
+        query ($airStart: Int, $airEnd: Int, $page: Int) {
+          Page(page: $page, perPage: 16) {
+            pageInfo { hasNextPage }
+            airingSchedules(airingAt_greater: $airStart, airingAt_lesser: $airEnd) {
+              episode media {
+                id title { english romaji } coverImage { large extraLarge } bannerImage
+                averageScore format episodes status description(asHtml: false) genres duration nextAiringEpisode { episode airingAt } startDate { year } trailer { id site }
+              }
+            }
+          }
+        }`;
+      const res = await fetch('https://graphql.anilist.co', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query, variables: { airStart, airEnd, page } })
+      });
+      if (!res.ok) throw new Error('AniList HTTP ' + res.status);
+      const data = await res.json();
+      const pg = data.data?.Page || {};
+      const scheds = pg.airingSchedules || [];
+      const seen = new Set();
+      const results = [];
+      scheds.forEach(s => {
+        if (s.media && !seen.has(s.media.id)) {
+          seen.add(s.media.id);
+          animeCache[s.media.id] = s.media;
+          results.push({ ...s.media, airingEpisode: s.episode });
+        }
+      });
+      return { list: results, hasNextPage: !!pg.pageInfo?.hasNextPage };
+    }
+
+    async function toggleSeeAll(kind) {
+      const st = rowPaging[kind];
+      const row = document.getElementById(kind + '-row');
+      const link = document.getElementById('seeall-' + kind);
+      const moreBtn = document.getElementById('row-more-' + kind);
+      if (!st.expanded) {
+        st.expanded = true;
+        row.classList.add('expanded');
+        link.textContent = 'See less';
+        await loadNextRowPage(kind);
+      } else {
+        st.expanded = false; st.page = 1; st.done = false;
+        row.classList.remove('expanded');
+        link.textContent = 'See all ▶';
+        if (moreBtn) moreBtn.style.display = 'none';
+        try {
+          if (kind === 'schedule') {
+            const list = await fetchAiringSchedule(currentSchedOffset);
+            row.innerHTML = '';
+            list.forEach(item => row.appendChild(createCard(item)));
+            schedSeenIds = new Set(list.map(x => x.id));
+          } else {
+            const r = await queryAniListPaged(st.vars, 1, 16);
+            row.innerHTML = '';
+            r.list.forEach(item => row.appendChild(createCard(item)));
+          }
+        } catch (e) { /* keep whatever is shown */ }
+      }
+    }
+
+    async function loadNextRowPage(kind) {
+      const st = rowPaging[kind];
+      if (st.busy || st.done) return;
+      st.busy = true;
+      const moreBtn = document.getElementById('row-more-' + kind);
+      if (moreBtn) moreBtn.textContent = 'Loading...';
       try {
-        const { list, hasNextPage } = await queryAniListPaged({ sort: ['POPULARITY_DESC'] }, morePage + 1, 16);
-        morePage++;
-        const row = document.getElementById('more-row');
-        list.forEach(item => row.appendChild(createCard(item)));
-        if (!hasNextPage || !list.length) { moreDone = true; btn.textContent = '— আর নেই —'; }
-        else { btn.textContent = '🔽 আরো দেখো'; btn.disabled = false; }
-      } catch (e) {
-        btn.textContent = '🔽 আরো দেখো (আবার চেষ্টা করো)'; btn.disabled = false;
-      } finally { moreBusy = false; }
+        const row = document.getElementById(kind + '-row');
+        if (kind === 'schedule') {
+          const r = await fetchAiringSchedulePaged(currentSchedOffset, st.page + 1);
+          st.page++;
+          st.done = !r.hasNextPage;
+          r.list.forEach(item => {
+            if (!schedSeenIds.has(item.id)) { schedSeenIds.add(item.id); row.appendChild(createCard(item)); }
+          });
+        } else {
+          const r = await queryAniListPaged(st.vars, st.page + 1, 16);
+          st.page++;
+          st.done = !r.hasNextPage || !r.list.length;
+          r.list.forEach(item => row.appendChild(createCard(item)));
+        }
+      } catch (e) { /* tap again to retry */ }
+      st.busy = false;
+      if (moreBtn) {
+        moreBtn.style.display = (st.expanded && !st.done) ? 'block' : 'none';
+        moreBtn.textContent = 'More ▼';
+      }
+    }
+
+    let dynState = null;
+    let dynBusy = false;
+    function updateDynMoreBtn() {
+      const btn = document.getElementById('dyn-more-btn');
+      if (!btn) return;
+      const sec = document.getElementById('dynamic-section');
+      const show = !!dynState && !dynState.done && sec && sec.style.display !== 'none';
+      btn.style.display = show ? 'block' : 'none';
+      btn.textContent = 'More ▼';
+    }
+
+    async function dynMore() {
+      if (!dynState || dynState.done || dynBusy) return;
+      dynBusy = true;
+      const btn = document.getElementById('dyn-more-btn');
+      if (btn) btn.textContent = 'Loading...';
+      try {
+        const dynRow = document.getElementById('dynamic-row');
+        if (dynState.postFilter === 'hindi') {
+          let added = 0;
+          let guard = 0;
+          while (added < 8 && guard < 4 && !dynState.done) {
+            guard++;
+            const r = await queryAniListPaged(dynState.vars, dynState.page + 1, 16);
+            dynState.page++;
+            dynState.done = !r.hasNextPage;
+            r.list.filter(checkHasHindiDub).forEach(item => { dynRow.appendChild(createCard(item)); added++; });
+          }
+        } else {
+          const r = await queryAniListPaged(dynState.vars, dynState.page + 1, dynState.perPage);
+          dynState.page++;
+          dynState.done = !r.hasNextPage || !r.list.length;
+          r.list.forEach(item => dynRow.appendChild(createCard(item)));
+        }
+      } catch (e) { /* state kept; user can tap again */ }
+      dynBusy = false;
+      updateDynMoreBtn();
     }
 
     // --- Stats share card (canvas PNG) ---

@@ -238,6 +238,18 @@
     .modal-tags { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px; }
     .lang-capsules-wrap { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
     .lang-pill { font-size: 0.72rem; font-weight: 700; padding: 4px 10px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); color: var(--text-muted); }
+    /* v10: language & dub */
+    .dub-line { font-size: 0.66rem; font-weight: 700; color: var(--accent); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .dub-chip-static { background: rgba(245,197,24,.14); color: var(--accent); border: 1px solid var(--accent); font-size: .62rem; font-weight: 800; padding: 4px 8px; border-radius: 999px; white-space: nowrap; flex-shrink: 0; }
+    .dub-switch { position: relative; width: 48px; height: 27px; flex-shrink: 0; display: inline-block; }
+    .dub-switch input { opacity: 0; width: 100%; height: 100%; position: absolute; margin: 0; cursor: pointer; z-index: 2; }
+    .dub-switch i { position: absolute; inset: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; transition: .2s; }
+    .dub-switch i::after { content: ''; position: absolute; top: 2px; left: 2px; width: 21px; height: 21px; border-radius: 50%; background: #8a8578; transition: .2s; }
+    .dub-switch input:checked + i { background: rgba(245,197,24,.3); border-color: var(--accent); }
+    .dub-switch input:checked + i::after { left: 23px; background: var(--accent); }
+    .dub-switch input:disabled { cursor: not-allowed; }
+    .lang-pill-btn { flex: 1; padding: 10px 4px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); color: var(--text-muted); font-weight: 800; font-size: .8rem; cursor: pointer; }
+    .lang-pill-btn.active { background: var(--accent); color: #000; border-color: var(--accent); }
     .lang-pill.hindi-active { background: var(--hindi-bg); border-color: var(--hindi-badge); color: #ff8a65; font-weight: 800; }
     
     .modal-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
@@ -331,6 +343,9 @@
       <div class="brand-title">OTAKU <span>VAULT</span></div>
     </div>
     <div class="top-actions">
+      <div onclick="openSettings()">
+        <svg fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      </div>
       <div onclick="switchTab('watchlist')">
         <svg fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
       </div>
@@ -563,6 +578,26 @@
   </div>
 
   <!-- Detail Modal -->
+  <!-- v10: Settings overlay -->
+  <div class="modal-overlay" id="settings-modal">
+    <div style="padding:16px 16px 0;">
+      <div class="modal-circle-btn" onclick="closeSettings()">
+        <svg fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+      </div>
+    </div>
+    <div class="modal-body" style="margin-top:0; padding-top:14px;">
+      <h2 class="modal-title">Settings</h2>
+      <div style="font-size:0.75rem; font-weight:800; color:var(--accent); margin-bottom:6px; letter-spacing:0.5px;">PREFERRED LANGUAGE</div>
+      <p style="font-size:0.82rem; line-height:1.55; color:var(--text-muted); margin-bottom:12px;">The language you watch in. My Zone, your Library and the detail page follow this — Home stays exactly as it is.</p>
+      <div style="display:flex; gap:8px; margin-bottom:22px;">
+        <button class="lang-pill-btn" data-lang="hi" onclick="setPrefLang('hi')">🇮🇳 Hindi</button>
+        <button class="lang-pill-btn" data-lang="en" onclick="setPrefLang('en')">🇬🇧 English</button>
+        <button class="lang-pill-btn" data-lang="ja" onclick="setPrefLang('ja')">🇯🇵 Japanese</button>
+      </div>
+      <p style="font-size:0.75rem; line-height:1.55; color:var(--text-muted);">Tip: open any anime and use its "Dub Available" switch when a dub is missing or wrong.</p>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="detail-modal">
     <div class="modal-banner-wrap">
       <img id="m-banner" class="modal-banner" src="" alt="Banner">
@@ -617,6 +652,14 @@
           <button class="ep-tracker-btn" onclick="adjustActiveEp(-1)">-1 Episode</button>
           <button class="ep-tracker-btn" style="background:var(--accent); color:#000;" onclick="adjustActiveEp(1)">+1 Episode</button>
         </div>
+      </div>
+
+      <div class="box-block" id="m-dub-block" style="display:none;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:0.85rem; font-weight:700;" id="m-dub-label">🎙️ Hindi Dub Available</span>
+          <label class="dub-switch"><input type="checkbox" id="m-dub-toggle" onchange="toggleDub(this.checked)"><i></i></label>
+        </div>
+        <div id="m-dub-note" style="font-size:0.72rem; color:var(--text-muted); margin-top:6px;"></div>
       </div>
 
       <div class="box-block">
@@ -714,7 +757,7 @@
       document.getElementById('m-title').innerText = item.title?.english || item.title?.romaji;
       document.getElementById('m-banner').src = item.bannerImage || item.coverImage?.extraLarge || item.coverImage?.large || 'https://picsum.photos/seed/otaku/800/450';
       document.getElementById('m-tags').innerText = `${item.startDate?.year || ''} • ${item.format || 'TV'}`;
-      document.getElementById('m-audio-langs').innerHTML = (checkHasHindiDub(item) ? ['🎙️ Hindi Dub', '🇯🇵 Japanese (Sub)', '🇺🇸 English Dub'] : ['🇯🇵 Japanese (Sub)', '🇺🇸 English Dub']).map(t => `<span class="lang-pill">${t}</span>`).join('');
+      document.getElementById('m-audio-langs').innerHTML = (dubFor(item, 'hi') ? ['🎙️ Hindi Dub', '🇯🇵 Japanese (Sub)', '🇺🇸 English Dub'] : ['🇯🇵 Japanese (Sub)', '🇺🇸 English Dub']).map(t => `<span class="lang-pill">${t}</span>`).join('');
       document.getElementById('m-genres').innerHTML = (item.genres || []).map(g => `<span class="lang-pill">${g}</span>`).join('');
       document.getElementById('m-desc').innerText = item.description ? item.description.replace(/<[^>]*>?/gm, '') : 'No synopsis available.';
       updateModalUI();
@@ -757,6 +800,8 @@
 
     // গ্লোবাল ব্যাক বাটন ইভেন্ট (মোবাইল ব্রাউজার / জেসচার ব্যাক)
     window.addEventListener('popstate', (e) => {
+      const sm = document.getElementById('settings-modal');
+      if (sm && sm.style.display === 'flex') { closeSettings(true); return; }
       const modal = document.getElementById('detail-modal');
       // ১. মোডাল খোলা থাকলে শুধু মোডাল বন্ধ হবে
       if (modal && modal.style.display === 'flex') {
@@ -778,7 +823,8 @@
       "jujutsu kaisen", "demon slayer", "chainsaw man", "solo leveling", 
       "naruto", "naruto shippuden", "boruto", "one punch man", "dragon ball", 
       "kaiju no. 8", "black clover", "dr. stone", "vinland saga", "spy x family",
-      "attack on titan", "my hero academia", "tokyo revengers", "mashle"
+      "attack on titan", "my hero academia", "tokyo revengers", "mashle",
+      "frieren", "exiled heavy knight", "mushoku tensei", "apothecary diaries", "overgeared", "psyren"
     ];
 
     function checkHasHindiDub(item) {
@@ -786,6 +832,81 @@
       const eng = (item.title?.english || "").toLowerCase();
       const rom = (item.title?.romaji || "").toLowerCase();
       return HINDI_DUBBED_TITLES.some(k => eng.includes(k) || rom.includes(k));
+    }
+
+    // ===== v10: Preferred Language + dub marking =====
+    const PREF_LANGS = { hi: { name: 'Hindi', flag: '🇮🇳' }, en: { name: 'English', flag: '🇬🇧' }, ja: { name: 'Japanese', flag: '🇯🇵' } };
+    let prefLang = localStorage.getItem('ov_pref_lang') || 'hi';
+    if (!PREF_LANGS[prefLang]) prefLang = 'hi';
+
+    function dubFor(item, lang) {
+      if (!item) return false;
+      const entry = userLibrary.find(x => x.id === item.id);
+      const src = entry || item;
+      if (src && src.dubbed && typeof src.dubbed[lang] === 'boolean') return src.dubbed[lang];
+      if (lang === 'hi') return checkHasHindiDub(item);
+      return false;
+    }
+    function airedCount(entry) {
+      if (entry.nextAiringEpisode && entry.nextAiringEpisode.episode) return entry.nextAiringEpisode.episode - 1;
+      if (entry.media_status === 'FINISHED' && entry.episodes) return entry.episodes;
+      return entry.episodes || 0;
+    }
+    function airingWeekday(entry) {
+      const na = entry && entry.nextAiringEpisode;
+      if (!na || !na.airingAt) return '';
+      const days = ['Sundays', 'Mondays', 'Tuesdays', 'Wednesdays', 'Thursdays', 'Fridays', 'Saturdays'];
+      return days[new Date(na.airingAt * 1000).getDay()];
+    }
+    function openSettings() {
+      document.querySelectorAll('#settings-modal .lang-pill-btn').forEach(b => b.classList.toggle('active', b.dataset.lang === prefLang));
+      document.getElementById('settings-modal').style.display = 'flex';
+      window.history.pushState({ settingsOpen: true }, '');
+    }
+    function closeSettings(isTriggeredByBack = false) {
+      const m = document.getElementById('settings-modal');
+      if (!m || m.style.display === 'none') return;
+      m.style.display = 'none';
+      if (!isTriggeredByBack && window.history.state?.settingsOpen) window.history.back();
+    }
+    function setPrefLang(lang) {
+      if (!PREF_LANGS[lang]) return;
+      prefLang = lang;
+      localStorage.setItem('ov_pref_lang', lang);
+      document.querySelectorAll('#settings-modal .lang-pill-btn').forEach(b => b.classList.toggle('active', b.dataset.lang === prefLang));
+      renderWatchlist(); renderZoneAll(); renderWatchingSection();
+      if (activeAnime) renderDubRow();
+    }
+    function renderDubRow() {
+      const block = document.getElementById('m-dub-block');
+      if (!block || !activeAnime) return;
+      if (prefLang === 'ja') { block.style.display = 'none'; return; }
+      const L = PREF_LANGS[prefLang];
+      const entry = userLibrary.find(x => x.id === activeAnime.id);
+      const on = dubFor(activeAnime, prefLang);
+      block.style.display = 'block';
+      document.getElementById('m-dub-label').innerText = `🎙️ ${L.name} Dub Available`;
+      const tgl = document.getElementById('m-dub-toggle');
+      tgl.checked = on; tgl.disabled = !entry;
+      let note = '';
+      if (!entry) note = 'Save this anime to your list to change its dub marking.';
+      else if (on) {
+        const wd = airingWeekday(entry);
+        note = (wd && entry.nextAiringEpisode && entry.nextAiringEpisode.airingAt > Date.now() / 1000)
+          ? `New episodes usually on ${wd} (follows the Japanese schedule).`
+          : `${L.name} dub marked as available for this title.`;
+      } else note = `Not marked. Turn this on if a ${L.name} dub exists — My Zone & Library cards will follow it.`;
+      document.getElementById('m-dub-note').innerText = note;
+    }
+    async function toggleDub(checked) {
+      const entry = userLibrary.find(x => x.id === activeAnime?.id);
+      if (!entry) return;
+      entry.dubbed = entry.dubbed || {};
+      entry.dubbed[prefLang] = !!checked;
+      await persistLibrary(userLibrary);
+      document.getElementById('m-audio-langs').innerHTML = (dubFor(activeAnime, 'hi') ? ['🎙️ Hindi Dub', '🇯🇵 Japanese (Sub)', '🇺🇸 English Dub'] : ['🇯🇵 Japanese (Sub)', '🇺🇸 English Dub']).map(t => `<span class="lang-pill">${t}</span>`).join('');
+      renderDubRow();
+      renderWatchlist(); renderZoneAll();
     }
 
     function getLocalBackup() {
@@ -926,7 +1047,7 @@
       schedSeenIds = new Set(list.map(x => x.id));
     }
 
-    function createCard(item) {
+    function createCard(item, opts = {}) {
       const title = item.title?.english || item.title?.romaji || 'Untitled';
       const cleanTitle = title.replace(/'/g, "\'").replace(/"/g, '&quot;');
       const img = item.coverImage?.extraLarge || item.coverImage?.large || '';
@@ -935,12 +1056,15 @@
       const primaryGenre = (item.genres && item.genres[0]) ? item.genres[0] : 'Anime';
       const hasHindi = checkHasHindiDub(item);
       const isSaved = !!userLibrary.find(x => x.id === item.id);
+      const libEntry = userLibrary.find(x => x.id === item.id) || null;
+      const dubOn = !!(opts && opts.lang && libEntry && prefLang !== 'ja' && dubFor(libEntry, prefLang));
+      const ribbonHtml = (hasHindi || dubOn) ? `<div class="hindi-ribbon">🎙️ ${dubOn && prefLang === 'en' && !hasHindi ? 'English' : 'Hindi'}</div>` : '';
 
       const card = document.createElement('div');
       card.className = 'media-card';
       card.innerHTML = `
         <img class="media-thumb" src="${img}" alt="${cleanTitle}" loading="lazy">
-        ${hasHindi ? '<div class="hindi-ribbon">🎙️ Hindi</div>' : ''}
+        ${ribbonHtml}
         <div class="card-actions-float">
           <div class="icon-circle-btn ${isSaved ? 'saved' : ''}" onclick="quickSave(event, ${item.id})">
             <svg fill="none" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
@@ -950,6 +1074,7 @@
           <div class="genre-tag-inline">${item.airingEpisode ? `Ep ${item.airingEpisode} Airing` : primaryGenre}</div>
           <div class="media-title" title="${cleanTitle}">${title}</div>
           <div class="media-subinfo"><span>${year}</span><span style="color:var(--accent); font-weight:700;">${score}</span></div>
+          ${dubOn && libEntry.status === 'WATCHING' ? `<div class="dub-line">${PREF_LANGS[prefLang].flag} ${PREF_LANGS[prefLang].name} · Ep ${libEntry.episodes_watched || 0} watched · JP ${airedCount(libEntry)} out</div>${airingWeekday(libEntry) ? `<div class="dub-line">New episodes usually on ${airingWeekday(libEntry)}</div>` : ''}` : ''}
         </div>
       `;
       card.onclick = (e) => { if (!e.target.closest('.icon-circle-btn')) openModal(item); };
@@ -1071,6 +1196,7 @@
       document.getElementById('m-ep-counter').innerText = `${entry?.episodes_watched || 0} / ${activeAnime.episodes || '?'} Ep`;
       document.getElementById('m-score-display').innerText = entry?.user_score ? `⭐ ${entry.user_score} / 10` : '⭐ Tap to Rate';
       document.getElementById('m-fav-btn').classList.toggle('fav-active', !!entry?.is_favorite);
+      renderDubRow();
     }
 
     async function toggleTrackingCategory(cat) {
@@ -1462,7 +1588,7 @@
       const behind = behindCount(entry);
       const row = document.createElement('div');
       row.className = 'zone-sched-item';
-      row.innerHTML = `<img src="${img}" alt=""><div style="flex:1; min-width:0;"><div class="zone-sched-title">${title}</div><div class="zone-sched-sub" data-cd="${na.airingAt}" data-ep="${na.episode}">Ep ${na.episode} · ${formatCountdown(na.airingAt)}</div></div>${behind > 0 ? `<div class="catchup-badge-static">🔴 ${behind} behind</div>` : ''}`;
+      row.innerHTML = `<img src="${img}" alt=""><div style="flex:1; min-width:0;"><div class="zone-sched-title">${title}</div><div class="zone-sched-sub" data-cd="${na.airingAt}" data-ep="${na.episode}">Ep ${na.episode} · ${formatCountdown(na.airingAt)}</div></div>${(prefLang !== 'ja' && dubFor(entry, prefLang)) ? `<div class="dub-chip-static">${PREF_LANGS[prefLang].flag} Watching in ${PREF_LANGS[prefLang].name}</div>` : (behind > 0 ? `<div class="catchup-badge-static">🔴 ${behind} behind</div>` : '')}`;
       row.onclick = () => openModal(entry);
       return row;
     }
@@ -1476,7 +1602,7 @@
         row.innerHTML = '<div style="color:var(--text-muted); padding:14px;">No favorites yet — tap ♥ on any anime and it will show up here.</div>';
         return;
       }
-      favs.forEach(item => row.appendChild(createCard(item)));
+      favs.forEach(item => row.appendChild(createCard(item, { lang: true })));
     }
 
     function movePickerToZone() {
@@ -1775,7 +1901,7 @@
       const c = document.getElementById('watchlist-container');
       const filtered = userLibrary.filter(item => (currentWlTab === 'ALL' || item.status === currentWlTab));
       c.innerHTML = filtered.length ? '' : `<div style="color:var(--text-muted); padding:20px;">No anime in this category.</div>`;
-      filtered.forEach(item => c.appendChild(createCard(item)));
+      filtered.forEach(item => c.appendChild(createCard(item, { lang: true })));
     }
 
     window.addEventListener("firebase-initialized", () => {

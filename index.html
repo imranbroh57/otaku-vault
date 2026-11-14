@@ -139,11 +139,12 @@
     .suggestions-dropdown {
       position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 100;
       background: var(--card); border: 1px solid var(--border); border-radius: 14px;
-      max-height: 280px; overflow-y: auto; display: none; box-shadow: 0 10px 25px rgba(0,0,0,0.8);
+      max-height: 280px; overflow-y: auto; overflow-x: hidden; display: none; box-shadow: 0 10px 25px rgba(0,0,0,0.8);
     }
-    .suggestion-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--border-subtle); cursor: pointer; }
+    .suggestion-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--border-subtle); cursor: pointer; overflow: hidden; }
     .suggestion-item:last-child { border-bottom: none; }
-    .suggestion-item img { width: 36px; height: 48px; object-fit: cover; border-radius: 6px; }
+    .suggestion-item > div { flex: 1; min-width: 0; }
+    .suggestion-item img { width: 36px; height: 48px; object-fit: cover; border-radius: 6px; flex-shrink: 0; }
     .suggestion-title { font-size: 0.85rem; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .suggestion-sub { font-size: 0.72rem; color: var(--text-muted); }
 
@@ -360,7 +361,9 @@
     <div class="search-wrapper">
       <div class="search-box">
         <svg fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-        <input type="text" id="search-input" placeholder="Search anime title, character, studio..." oninput="handleLiveSuggestions()">
+        <form id="search-form" style="display:flex; flex:1; min-width:0; margin:0;" autocomplete="off">
+          <input type="text" id="search-input" placeholder="Search anime title, character, studio..." enterkeyhint="search" autocomplete="off" oninput="handleLiveSuggestions()">
+        </form>
       </div>
       <div class="suggestions-dropdown" id="search-suggestions"></div>
     </div>
@@ -2032,10 +2035,19 @@
 
     function closeShareModal() { document.getElementById('share-modal').style.display = 'none'; }
 
+    function submitSearch() {
+      document.getElementById('search-suggestions').style.display = 'none';
+      document.getElementById('search-input')?.blur();
+      runFilteredSearch();
+    }
+    document.getElementById('search-form')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      submitSearch();
+    });
     document.getElementById('search-input')?.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        document.getElementById('search-suggestions').style.display = 'none';
-        runFilteredSearch();
+      if (e.key === 'Enter' || e.keyCode === 13) {
+        e.preventDefault();
+        submitSearch();
       }
     });
 

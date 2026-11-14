@@ -621,7 +621,8 @@
       <h2 id="m-title" class="modal-title"></h2>
       <div id="m-tags" class="modal-tags"></div>
       <div style="font-size:0.75rem; font-weight:800; color:var(--accent); margin-bottom:6px; letter-spacing:0.5px;">AUDIO & DUBS AVAILABLE</div>
-      <div class="lang-capsules-wrap" id="m-audio-langs"></div>
+      <div class="lang-capsules-wrap" id="m-audio-langs" style="margin-bottom:8px;"></div>
+      <div id="m-dub-source" style="display:none; font-size:0.72rem; color:var(--text-muted); margin-bottom:16px;"></div>
       <div id="m-genres" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px;"></div>
 
       <div class="modal-actions">
@@ -758,6 +759,7 @@
       document.getElementById('m-banner').src = item.bannerImage || item.coverImage?.extraLarge || item.coverImage?.large || 'https://picsum.photos/seed/otaku/800/450';
       document.getElementById('m-tags').innerText = `${item.startDate?.year || ''} • ${item.format || 'TV'}`;
       document.getElementById('m-audio-langs').innerHTML = (dubFor(item, 'hi') ? ['🎙️ Hindi Dub', '🇯🇵 Japanese (Sub)', '🇺🇸 English Dub'] : ['🇯🇵 Japanese (Sub)', '🇺🇸 English Dub']).map(t => `<span class="lang-pill">${t}</span>`).join('');
+      renderDubSource(item);
       document.getElementById('m-genres').innerHTML = (item.genres || []).map(g => `<span class="lang-pill">${g}</span>`).join('');
       document.getElementById('m-desc').innerText = item.description ? item.description.replace(/<[^>]*>?/gm, '') : 'No synopsis available.';
       updateModalUI();
@@ -820,12 +822,151 @@
 
     // --- অ্যানিমে ডাটা ফেচিং ও লোকাল স্টোরেজ ---
     const HINDI_DUBBED_TITLES = [
-      "jujutsu kaisen", "demon slayer", "chainsaw man", "solo leveling", 
-      "naruto", "naruto shippuden", "boruto", "one punch man", "dragon ball", 
-      "kaiju no. 8", "black clover", "dr. stone", "vinland saga", "spy x family",
-      "attack on titan", "my hero academia", "tokyo revengers", "mashle",
-      "frieren", "exiled heavy knight", "mushoku tensei", "apothecary diaries", "overgeared", "psyren"
+      "jujutsu kaisen", "demon slayer", "chainsaw man", "solo leveling", "naruto", "naruto shippuden", "boruto", "one punch man", "dragon ball", "kaiju no. 8", "black clover", "dr. stone", "vinland saga", "spy x family", "attack on titan", "my hero academia", "tokyo revengers", "mashle", "frieren", "exiled heavy knight", "mushoku tensei", "apothecary diaries", "overgeared", "psyren", "death note", "fullmetal alchemist", "hunter x hunter", "one piece", "bleach", "mob psycho 100", "fairy tail", "code geass", "tokyo ghoul", "food wars", "gintama", "log horizon", "overlord", "shield hero", "god of high school", "terror in resonance", "ancient magus", "relife", "yuri!!! on ice", "horimiya", "re:zero", "konosuba", "classroom of the elite", "goblin slayer", "sk8 the infinity", "my dress-up darling", "rent-a-girlfriend", "arifureta", "bofuri", "ranking of kings", "blue lock", "tsukimichi", "angel next door", "amagami", "akebi", "quality assurance in another world", "shin-chan", "beyblade burst", "gachiakuta", "fire force", "campfire cooking", "7th prince", "black butler", "hanako-kun", "trigun", "sac_2045", "iruma-kun", "vanitas", "haikyu", "devil is a part-timer", "reincarnated as a slime", "hana-kimi", "elusive samurai", "black torch", "ramparts of ice", "ranma", "blue box", "cheat-granting", "wild last boss", "super timid noble", "detective is already dead", "iceblade sorcerer", "firefly wedding", "my happy marriage", "sword art online", "assassination classroom", "one-hit kill sister", "your name", "spirited away", "howl's moving castle", "mononoke", "my neighbor totoro", "kiki's delivery", "first slam dunk", "suzume", "grand blue", "frontier lord", "devils' crest", "marronnier", "pocket monsters", "doraemon", "ninja hattori", "komi can't communicate", "edgerunners", "appraisal skill", "bride of the barrier master", "love unseen", "your lie in april", "kaguya-sama", "weathering with you", "stand alone complex", "masamune-kun", "cells at work", "tower of god", "detective conan", "gantz", "immortal king", "darling in the franxx", "dandadan", "rurouni kenshin", "baki", "lookism", "akuma kun", "delicious in dungeon", "sakamoto days", "summer hikaru died", "witch hat atelier", "daemons of the shadow realm", "garouden", "my oni girl", "wind breaker", "shangri-la frontier", "trapped in a dating sim", "wistoria", "makeine", "bye bye, earth", "couple of cuckoos", "status as an assassin", "clevatess", "greatest alchemist", "viral hit", "demon lord, retry", "yaiba", "farming life in another world"
     ];
+
+    // Hindi dub platform info — source: AniLumi (anilumi.in/hindi-dub), checked Nov 2026.
+    const HINDI_DUB_INFO = {
+      "attack on titan": "Anime Times (S1-4) · Muse India (S1-2)",
+      "my hero academia": "Crunchyroll (S1-7) · JioHotstar (S8) · +2 more",
+      "one punch man": "Crunchyroll (S3) · Muse India (From 1 May 2026) · +2 more",
+      "death note": "Anime Times (All 37 episodes (completed 18 Dec)",
+      "fullmetal alchemist": "Crunchyroll (Full series) · Anime Times (Separate dub)",
+      "your name": "Crunchyroll (Film)",
+      "hunter x hunter": "Muse India (Greed Island arc onward) · MX Player (S1) · +1 more",
+      "demon slayer": "Crunchyroll (S1-4 (Mugen Train, Entertainment) · Anime Times (S1-4) · +3 more",
+      "one piece": "Crunchyroll (Episodes 1089-1155) · Cartoon Network India (East Blue arc)",
+      "spirited away": "Netflix (Film)",
+      "assassination classroom": "Crunchyroll (S1-2)",
+      "haikyu": "Crunchyroll (S1-4)",
+      "jujutsu kaisen": "Crunchyroll (S1-3) · JioHotstar (S1-2) · +1 more",
+      "your lie in april": "MX Player (S1)",
+      "naruto": "Crunchyroll · Sony YAY! (TV)",
+      "sword art online": "Crunchyroll (S1) · JioHotstar (S1-2)",
+      "code geass": "Crunchyroll (S1)",
+      "tokyo ghoul": "Crunchyroll (S1, √A, :re)",
+      "howl's moving castle": "Netflix (Film)",
+      "food wars": "ZEE5 (All five seasons) · Zee Café (TV broadcast from Oct 2025)",
+      "mob psycho 100": "Muse India (S1-3 and OVA) · MX Player (S1) · +1 more",
+      "re:zero": "Crunchyroll (S4) · MX Player (S1)",
+      "mononoke": "Netflix (Film)",
+      "my neighbor totoro": "Netflix (Film)",
+      "fairy tail": "Muse India (S1 onward)",
+      "dr. stone": "Crunchyroll (S1-2 confirmed)",
+      "konosuba": "Crunchyroll (S1-2)",
+      "kaguya-sama": "MX Player (S1)",
+      "bleach": "JioHotstar (Thousand-Year Blood War) · Ani-One India (Thousand-Year Blood War Cours 1-3) · +1 more",
+      "reincarnated as a slime": "Crunchyroll (S1-2 confirmed) · Muse India (S1-4)",
+      "jojo": "Muse India (Phantom Blood to Diamond Is) · MX Player (S1)",
+      "black clover": "Crunchyroll (S1 Part 1 (rolling out since 10 Oct)",
+      "gintama": "MX Player (S1)",
+      "dragon ball": "Crunchyroll (Dragon Ball Daima) · Crunchyroll (Dragon Ball Super: Super Hero) · +2 more",
+      "log horizon": "Crunchyroll (S1-2)",
+      "overlord": "Crunchyroll (S1-4)",
+      "tokyo revengers": "Muse India (S1)",
+      "black butler": "Crunchyroll (Public School Arc and Emerald Witch)",
+      "spy x family": "Crunchyroll (S1-3) · Muse Hindi Dub (S1) · +2 more",
+      "terror in resonance": "Anime Times (Full series (Hindi from 18 Feb) · Apple TV (Hindi audio listed)",
+      "ancient magus": "Crunchyroll (S1-2)",
+      "weathering with you": "Crunchyroll (Film)",
+      "kiki's delivery": "Netflix (Film)",
+      "vinland saga": "Crunchyroll (S1-2)",
+      "stand alone complex": "Netflix (SAC_2045) · Apple TV (Solid State Society film, streams)",
+      "relife": "Crunchyroll (S1)",
+      "hanako-kun": "Crunchyroll (S1-2)",
+      "trigun": "Crunchyroll (Trigun Stampede / Trigun Stargaze)",
+      "classroom of the elite": "MX Player (S1) · Muse India (S1-3)",
+      "chainsaw man": "Crunchyroll (S1)",
+      "goblin slayer": "MX Player (S1) · JioHotstar (S1)",
+      "sk8 the infinity": "Crunchyroll (S1)",
+      "mushoku tensei": "Crunchyroll (S1 and S2 Part 1) · Muse India (S1 (Jul-Aug 2024), OVA and S2 (Oct) · +1 more",
+      "masamune-kun": "Crunchyroll (S2, Masamune-kun's Revenge R)",
+      "pocket monsters": "Pokémon Asia Hindi (Horizons) · Apple TV (Pokémon Journeys, streams via Prime) · +1 more",
+      "cells at work": "Muse India (Weekly from Apr 2026)",
+      "tower of god": "Crunchyroll (S1)",
+      "detective conan": "Apple TV (Case Closed listing, streams via) · Netflix (Spin-offs Zero's Tea Time and The)",
+      "god of high school": "Apple TV (Streams via Prime Video)",
+      "my dress-up darling": "Crunchyroll (S1)",
+      "rent-a-girlfriend": "Crunchyroll (S4)",
+      "arifureta": "Crunchyroll (S1-3) · Apple TV (Streams via Prime Video)",
+      "gantz": "Netflix (The First Stage and The Second Stage)",
+      "bofuri": "JioHotstar (S1-2) · Muse India (From Dec 2025)",
+      "iruma-kun": "Muse India (S3) · Apple TV (Streams via Prime Video)",
+      "frieren": "Crunchyroll (S1 and S2) · Netflix (S1)",
+      "ranking of kings": "Crunchyroll (S1)",
+      "solo leveling": "Crunchyroll (S1 and S2)",
+      "blue lock": "Crunchyroll (S1) · Zee Café (TV broadcast)",
+      "vanitas": "Apple TV (Streams via Prime Video)",
+      "tsukimichi": "Crunchyroll (S2)",
+      "immortal king": "Crunchyroll (From Feb 2024) · Apple TV (Streams via Prime Video)",
+      "dandadan": "Anime Times (S1) · Crunchyroll (S1) · +1 more",
+      "kaiju no. 8": "Crunchyroll (S1)",
+      "mashle": "Crunchyroll (S1 and S2)",
+      "suzume": "Crunchyroll (Film)",
+      "rurouni kenshin": "Crunchyroll (S1)",
+      "apothecary diaries": "Netflix (S1-3) · Crunchyroll (S1-3)",
+      "doraemon": "Netflix (Stand by Me Doraemon)",
+      "baki": "Netflix (Baki)",
+      "ranma": "Netflix (2024 series)",
+      "lookism": "Netflix (S1)",
+      "akuma kun": "Netflix (2023 series)",
+      "delicious in dungeon": "Netflix (S1)",
+      "my oni girl": "Netflix (Film)",
+      "wind breaker": "Crunchyroll (S1) · Apple TV (Streams via Prime Video)",
+      "shangri-la frontier": "Apple TV (Streams via Prime Video)",
+      "trapped in a dating sim": "Crunchyroll (S2) · Apple TV (Streams via Prime Video)",
+      "elusive samurai": "Crunchyroll (S1) · Apple TV (Streams via Prime Video)",
+      "wistoria": "Crunchyroll (S1) · Apple TV (Streams via Prime Video)",
+      "makeine": "Crunchyroll (S1) · Apple TV (Streams via Prime Video)",
+      "bye bye, earth": "Crunchyroll (S1) · Apple TV (Streams via Prime Video)",
+      "couple of cuckoos": "Apple TV (Streams via Prime Video)",
+      "status as an assassin": "Crunchyroll (Simuldub) · Apple TV (Streams via Prime Video)",
+      "clevatess": "Crunchyroll (S1) · Apple TV (Streams via Prime Video)",
+      "greatest alchemist": "Apple TV (Streams via Prime Video)",
+      "viral hit": "Apple TV (Streams via Prime Video)",
+      "demon lord, retry": "Apple TV (Streams via Prime Video)",
+      "yaiba": "Apple TV (Streams via Prime Video)",
+      "farming life in another world": "Apple TV (Streams via Prime Video)",
+      "angel next door": "Apple TV (Streams via Prime Video)",
+      "amagami": "Apple TV (Streams via Prime Video)",
+      "akebi": "Apple TV (Listed on Apple TV India)",
+      "quality assurance in another world": "Apple TV (Streams via Prime Video)",
+      "shin-chan": "Hungama TV (Classic episodes and films) · Sony YAY! (Newer episodes (from May 2024)",
+      "beyblade burst": "Beyblade Burst Official Hindi (S1) · Hungama TV (S1 aired June 2020)",
+      "gachiakuta": "Crunchyroll (S1)",
+      "fire force": "Crunchyroll (S3)",
+      "campfire cooking": "Crunchyroll (S2)",
+      "7th prince": "Crunchyroll (S1) · Muse India (Weekly from Dec 2025)",
+      "blue box": "Netflix",
+      "daemons of the shadow realm": "Crunchyroll · Netflix",
+      "darling in the franxx": "Crunchyroll",
+      "garouden": "Netflix",
+      "horimiya": "Crunchyroll",
+      "my happy marriage": "Netflix",
+      "sakamoto days": "Netflix",
+      "shield hero": "Crunchyroll",
+      "summer hikaru died": "Netflix",
+      "witch hat atelier": "Crunchyroll · Netflix",
+      "yuri!!! on ice": "Crunchyroll"
+};
+
+    function hindiDubInfo(item) {
+      if (!item) return '';
+      const eng = (item.title?.english || "").toLowerCase();
+      const rom = (item.title?.romaji || "").toLowerCase();
+      for (const k of Object.keys(HINDI_DUB_INFO)) {
+        if (eng.includes(k) || rom.includes(k)) return HINDI_DUB_INFO[k];
+      }
+      return '';
+    }
+
+    function renderDubSource(item) {
+      const el = document.getElementById('m-dub-source');
+      if (!el) return;
+      const info = item && dubFor(item, 'hi') ? hindiDubInfo(item) : '';
+      el.style.display = info ? 'block' : 'none';
+      if (info) el.innerHTML = `🎙️ Hindi dub: <b style="color:#d6d0c4;">${info}</b> <span style="opacity:.65;">· via AniLumi</span>`;
+    }
 
     function checkHasHindiDub(item) {
       if (!item) return false;
@@ -905,6 +1046,7 @@
       entry.dubbed[prefLang] = !!checked;
       await persistLibrary(userLibrary);
       document.getElementById('m-audio-langs').innerHTML = (dubFor(activeAnime, 'hi') ? ['🎙️ Hindi Dub', '🇯🇵 Japanese (Sub)', '🇺🇸 English Dub'] : ['🇯🇵 Japanese (Sub)', '🇺🇸 English Dub']).map(t => `<span class="lang-pill">${t}</span>`).join('');
+      renderDubSource(activeAnime);
       renderDubRow();
       renderWatchlist(); renderZoneAll();
     }

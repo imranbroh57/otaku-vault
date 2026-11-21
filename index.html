@@ -597,6 +597,10 @@
         <button class="lang-pill-btn" data-lang="en" onclick="setPrefLang('en')">🇬🇧 English</button>
         <button class="lang-pill-btn" data-lang="ja" onclick="setPrefLang('ja')">🇯🇵 Japanese</button>
       </div>
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:22px;">
+        <span style="font-size:0.9rem; font-weight:700; color:#fff;">Voice: Hina</span>
+        <label class="dub-switch"><input type="checkbox" id="voice-toggle" onchange="toggleWelcomeVoice(this.checked)"><i></i></label>
+      </div>
       <p style="font-size:0.75rem; line-height:1.55; color:var(--text-muted);">Tip: open any anime and use its "Dub Available" switch when a dub is missing or wrong.</p>
     </div>
   </div>
@@ -1004,6 +1008,7 @@
     }
     function openSettings() {
       document.querySelectorAll('#settings-modal .lang-pill-btn').forEach(b => b.classList.toggle('active', b.dataset.lang === prefLang));
+      syncVoiceToggle();
       document.getElementById('settings-modal').style.display = 'flex';
       window.history.pushState({ settingsOpen: true }, '');
     }
@@ -1021,6 +1026,24 @@
       renderWatchlist(); renderZoneAll(); renderWatchingSection();
       if (activeAnime) renderDubRow();
     }
+    // ===== v10.3: Welcome Voice (Hina) =====
+    let welcomeVoiceOn = localStorage.getItem('ov_welcome_voice') !== '0';
+    function toggleWelcomeVoice(on) {
+      welcomeVoiceOn = !!on;
+      localStorage.setItem('ov_welcome_voice', on ? '1' : '0');
+    }
+    function syncVoiceToggle() {
+      const t = document.getElementById('voice-toggle');
+      if (t) t.checked = welcomeVoiceOn;
+    }
+    let welcomePlayed = false;
+    window.addEventListener('pointerdown', function () {
+      if (welcomePlayed) return;
+      welcomePlayed = true;
+      if (!welcomeVoiceOn) return;
+      const a = document.getElementById('welcome-audio');
+      if (a) { const pr = a.play(); if (pr && pr.catch) pr.catch(() => {}); }
+    });
     function renderDubRow() {
       const block = document.getElementById('m-dub-block');
       if (!block || !activeAnime) return;
@@ -2104,5 +2127,6 @@
       });
     }
   </script>
+  <audio id="welcome-audio" src="welcome-voice.mp3" preload="auto" style="display:none"></audio>
 </body>
 </html>

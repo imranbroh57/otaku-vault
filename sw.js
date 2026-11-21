@@ -6,7 +6,7 @@
 //  - network-first with cache fallback for page navigations
 //  - network-only for API calls (AniList / Firebase are POST or cross-origin)
 
-const CACHE_NAME = 'otaku-vault-v14';
+const CACHE_NAME = 'otaku-vault-v15';
 const APP_SHELL = [
   './',
   './index.html',
@@ -73,4 +73,35 @@ self.addEventListener('fetch', (e) => {
 
   // Cross-origin GET (cover images, fonts): network, fall back to cache.
   e.respondWith(fetch(req).catch(() => caches.match(req)));
+});
+
+// v10.4: Web Push — show the notification the push helper sends.
+self.addEventListener('push', (e) => {
+  let data = { title: 'Otaku Vault', body: 'A new episode is out!' };
+  try {
+    if (e.data) data = Object.assign(data, e.data.json());
+  } catch (err) { /* keep the defaults */ }
+  const options = {
+    body: data.body,
+    icon: './icon-192.png',
+    badge: './icon-192.png',
+    data: { url: data.url || './' }
+  };
+  e.waitUntil(self.registration.showNotification(data.title, options));
+});
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  const target = (e.notification.data && e.notification.data.url) || './';
+  e.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+      for (const c of list) {
+        if ('focus' in c) {
+          if (c.navigate) c.navigate(target).catch(() => {});
+          return c.focus();
+        }
+      }
+      if (clients.openWindow) return clients.openWindow(target);
+    })
+  );
 });

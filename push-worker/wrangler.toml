@@ -1,0 +1,20 @@
+# Otaku Vault push helper — Cloudflare Worker config
+name = "otaku-vault-push"
+main = "worker.js"
+compatibility_date = "2024-11-01"
+
+# Daily check for new episodes (03:00 UTC every day)
+[triggers]
+crons = ["0 3 * * *"]
+
+# Key-value store for push subscriptions.
+# Create it with:  npx wrangler kv namespace create SUBS
+# then paste the returned id below.
+[[kv_namespaces]]
+binding = "SUBS"
+id = "PASTE_KV_NAMESPACE_ID_HERE"
+
+# Also set these in the Cloudflare dashboard (Worker > Settings > Variables):
+#   VAPID_PUBLIC_KEY   (plain text variable)
+#   VAPID_PRIVATE_KEY  (add it as a Secret, not a plain variable)
+#   VAPID_SUBJECT      (optional plain text, e.g. "mailto:you@example.com")

@@ -124,6 +124,13 @@
     .brand-title span { color: var(--accent); text-shadow: 0 0 12px rgba(245, 197, 24, 0.35); }
     .top-actions { display: flex; gap: 16px; align-items: center; }
     .top-actions svg { width: 22px; height: 22px; stroke: var(--text-muted); cursor: pointer; }
+    .notif-bell-wrap { position: relative; }
+    .notif-badge { position: absolute; top: -6px; right: -8px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px; background: var(--accent); color: #0c0b0a; font-size: 0.62rem; font-weight: 800; display: none; align-items: center; justify-content: center; pointer-events: none; }
+    .notif-row { display: flex; gap: 12px; align-items: flex-start; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px; margin-bottom: 10px; cursor: pointer; }
+    .notif-row-icon { font-size: 1.15rem; line-height: 1.3; }
+    .notif-row-title { font-size: 0.88rem; font-weight: 700; color: #fff; line-height: 1.35; }
+    .notif-row-sub { font-size: 0.76rem; color: var(--text-muted); line-height: 1.45; margin-top: 2px; }
+    .notif-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; margin-top: 6px; }
 
     .container { padding: 14px 16px; }
 
@@ -344,6 +351,10 @@
       <div class="brand-title">OTAKU <span>VAULT</span></div>
     </div>
     <div class="top-actions">
+      <div class="notif-bell-wrap" onclick="openNotifications()">
+        <svg fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+        <span class="notif-badge" id="notif-badge">0</span>
+      </div>
       <div onclick="openSettings()">
         <svg fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
       </div>
@@ -601,7 +612,42 @@
         <span style="font-size:0.9rem; font-weight:700; color:#fff;">Voice: Hina</span>
         <label class="dub-switch"><input type="checkbox" id="voice-toggle" onchange="toggleWelcomeVoice(this.checked)"><i></i></label>
       </div>
+      <div style="font-size:0.75rem; font-weight:800; color:var(--accent); margin-bottom:6px; letter-spacing:0.5px;">NOTIFICATIONS</div>
+      <p style="font-size:0.82rem; line-height:1.55; color:var(--text-muted); margin-bottom:12px;">In-app alerts for the shows you are watching, worked out on this device from your list.</p>
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+        <span style="font-size:0.9rem; font-weight:700; color:#fff;">New episode alerts</span>
+        <label class="dub-switch"><input type="checkbox" id="notif-toggle-ep" onchange="toggleNotifSetting('newEp', this.checked)"><i></i></label>
+      </div>
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+        <span style="font-size:0.9rem; font-weight:700; color:#fff;">Hindi dub alerts</span>
+        <label class="dub-switch"><input type="checkbox" id="notif-toggle-dub" onchange="toggleNotifSetting('hindiDub', this.checked)"><i></i></label>
+      </div>
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:22px;">
+        <span style="font-size:0.9rem; font-weight:700; color:#fff;">Behind reminders</span>
+        <label class="dub-switch"><input type="checkbox" id="notif-toggle-behind" onchange="toggleNotifSetting('behind', this.checked)"><i></i></label>
+      </div>
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+        <span style="font-size:0.9rem; font-weight:700; color:#fff;">Push Notifications</span>
+        <button id="push-enable-btn" onclick="enablePush()" style="background:var(--accent); color:#0c0b0a; border:none; font-weight:800; font-size:0.8rem; padding:9px 14px; border-radius:10px; cursor:pointer;">Enable</button>
+      </div>
+      <p id="push-note" style="font-size:0.75rem; line-height:1.55; color:var(--text-muted); margin-bottom:22px;">Get a phone notification when a new episode airs, even when Otaku Vault is closed. Needs the free push helper to be set up once (see the push-worker folder).</p>
       <p style="font-size:0.75rem; line-height:1.55; color:var(--text-muted);">Tip: open any anime and use its "Dub Available" switch when a dub is missing or wrong.</p>
+    </div>
+  </div>
+
+  <!-- v10.4: Notifications panel -->
+  <div class="modal-overlay" id="notif-modal">
+    <div style="padding:16px 16px 0;">
+      <div class="modal-circle-btn" onclick="closeNotifications()">
+        <svg fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+      </div>
+    </div>
+    <div class="modal-body" style="margin-top:0; padding-top:14px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+        <h2 class="modal-title" style="margin-bottom:0;">Notifications</h2>
+        <button onclick="markAllNotificationsRead()" style="background:var(--surface); border:1px solid var(--border); color:var(--accent); font-weight:700; font-size:0.78rem; padding:8px 12px; border-radius:10px; cursor:pointer;">Mark all read</button>
+      </div>
+      <div id="notif-list"></div>
     </div>
   </div>
 
@@ -688,6 +734,13 @@
   </div>
 
   <script>
+    // ===== v10.4: Push config — paste your own values here =====
+    // After deploying the free push helper (see the push-worker folder in this
+    // repo), paste its VAPID public key and Worker URL below. Until then the
+    // Settings page simply shows "Push is not set up yet".
+    const VAPID_PUBLIC_KEY = 'PASTE_VAPID_PUBLIC_KEY_HERE';
+    const PUSH_WORKER_URL = 'https://your-worker.example.com';
+
     let activeUser = null;
     let userLibrary = [];
     let currentWlTab = 'ALL';
@@ -809,6 +862,8 @@
 
     // গ্লোবাল ব্যাক বাটন ইভেন্ট (মোবাইল ব্রাউজার / জেসচার ব্যাক)
     window.addEventListener('popstate', (e) => {
+      const nm = document.getElementById('notif-modal');
+      if (nm && nm.style.display === 'flex') { closeNotifications(true); return; }
       const sm = document.getElementById('settings-modal');
       if (sm && sm.style.display === 'flex') { closeSettings(true); return; }
       const modal = document.getElementById('detail-modal');
@@ -1009,6 +1064,7 @@
     function openSettings() {
       document.querySelectorAll('#settings-modal .lang-pill-btn').forEach(b => b.classList.toggle('active', b.dataset.lang === prefLang));
       syncVoiceToggle();
+      syncNotifToggles();
       document.getElementById('settings-modal').style.display = 'flex';
       window.history.pushState({ settingsOpen: true }, '');
     }
@@ -1044,6 +1100,168 @@
       const a = document.getElementById('welcome-audio');
       if (a) { const pr = a.play(); if (pr && pr.catch) pr.catch(() => {}); }
     });
+    // ===== v10.4: In-app notifications (bell) =====
+    // Derived live on this device from the Watching list and the AniList
+    // airing data the app already loads. No extra network calls, no server.
+    const NOTIF_SETTINGS_KEY = 'ov_notif_settings';
+    const NOTIF_READ_KEY = 'ov_notif_read';
+    let notifSettings = { newEp: true, hindiDub: true, behind: true, push: false };
+    try { Object.assign(notifSettings, JSON.parse(localStorage.getItem(NOTIF_SETTINGS_KEY) || '{}')); } catch (e) {}
+    let notifRead = {};
+    try { notifRead = JSON.parse(localStorage.getItem(NOTIF_READ_KEY) || '{}') || {}; } catch (e) { notifRead = {}; }
+    let currentNotifications = [];
+
+    function saveNotifSettings() { localStorage.setItem(NOTIF_SETTINGS_KEY, JSON.stringify(notifSettings)); }
+    function saveNotifRead() { localStorage.setItem(NOTIF_READ_KEY, JSON.stringify(notifRead)); }
+    function toggleNotifSetting(key, on) {
+      notifSettings[key] = !!on;
+      saveNotifSettings();
+      computeNotifications();
+    }
+    function syncNotifToggles() {
+      const ep = document.getElementById('notif-toggle-ep');
+      const dub = document.getElementById('notif-toggle-dub');
+      const bh = document.getElementById('notif-toggle-behind');
+      if (ep) ep.checked = !!notifSettings.newEp;
+      if (dub) dub.checked = !!notifSettings.hindiDub;
+      if (bh) bh.checked = !!notifSettings.behind;
+    }
+    function notifAired(entry) {
+      if (entry.nextAiringEpisode && entry.nextAiringEpisode.episode) return entry.nextAiringEpisode.episode - 1;
+      if (entry.media_status === 'FINISHED' && entry.episodes) return entry.episodes;
+      return null;
+    }
+    function computeNotifications() {
+      const list = [];
+      (userLibrary || []).filter(x => x.status === 'WATCHING').forEach(entry => {
+        const aired = notifAired(entry);
+        if (aired === null) return;
+        const watched = entry.episodes_watched || 0;
+        const behind = Math.max(0, aired - watched);
+        if (behind <= 0) return;
+        const title = entry.title?.english || entry.title?.romaji || 'Untitled';
+        const hindi = dubFor(entry, 'hi');
+        if (hindi && notifSettings.hindiDub) {
+          list.push({ key: `dub:${entry.id}:${aired}`, type: 'dub', id: entry.id, icon: '🎙️',
+            title: `New Hindi dub episode: ${title}`,
+            sub: `Episode ${aired} is out in Hindi. You are at episode ${watched}.` });
+        } else if (!hindi && notifSettings.newEp) {
+          list.push({ key: `ep:${entry.id}:${aired}`, type: 'ep', id: entry.id, icon: '📺',
+            title: `New episode: ${title}`,
+            sub: `Episode ${aired} has aired. You are at episode ${watched}.` });
+        }
+        if (notifSettings.behind && behind >= 3) {
+          list.push({ key: `behind:${entry.id}:${behind}`, type: 'behind', id: entry.id, icon: '🔴',
+            title: `You are ${behind} episodes behind`,
+            sub: `${title} — episode ${aired} is out, you are at episode ${watched}. Time to catch up!` });
+        }
+      });
+      currentNotifications = list.slice(0, 30);
+      updateNotifBadge();
+      renderNotificationList();
+    }
+    function unreadNotifCount() {
+      return currentNotifications.filter(n => !notifRead[n.key]).length;
+    }
+    function updateNotifBadge() {
+      const b = document.getElementById('notif-badge');
+      if (!b) return;
+      const n = unreadNotifCount();
+      b.textContent = n > 99 ? '99+' : String(n);
+      b.style.display = n > 0 ? 'flex' : 'none';
+    }
+    function renderNotificationList() {
+      const c = document.getElementById('notif-list');
+      if (!c) return;
+      if (!currentNotifications.length) {
+        c.innerHTML = `<div style="color:var(--text-muted); padding:16px 4px; font-size:0.85rem; line-height:1.55;">You're all caught up — no new episodes right now. New alerts appear here when a show you are watching airs a new episode.</div>`;
+        return;
+      }
+      c.innerHTML = '';
+      currentNotifications.forEach(n => {
+        const row = document.createElement('div');
+        row.className = 'notif-row';
+        row.innerHTML = `<div class="notif-row-icon">${n.icon}</div><div style="flex:1; min-width:0;"><div class="notif-row-title"></div><div class="notif-row-sub"></div></div>${notifRead[n.key] ? '' : '<div class="notif-dot"></div>'}`;
+        row.querySelector('.notif-row-title').textContent = n.title;
+        row.querySelector('.notif-row-sub').textContent = n.sub;
+        row.onclick = () => {
+          notifRead[n.key] = true; saveNotifRead(); updateNotifBadge(); renderNotificationList();
+          const entry = userLibrary.find(x => x.id === n.id);
+          if (entry) { closeNotifications(); openModal(entry); }
+        };
+        c.appendChild(row);
+      });
+    }
+    function openNotifications() {
+      computeNotifications();
+      document.getElementById('notif-modal').style.display = 'flex';
+      window.history.pushState({ notifOpen: true }, '');
+    }
+    function closeNotifications(isTriggeredByBack = false) {
+      const m = document.getElementById('notif-modal');
+      if (!m || m.style.display === 'none') return;
+      m.style.display = 'none';
+      if (!isTriggeredByBack && window.history.state?.notifOpen) window.history.back();
+    }
+    function markAllNotificationsRead() {
+      currentNotifications.forEach(n => { notifRead[n.key] = true; });
+      saveNotifRead();
+      updateNotifBadge();
+      renderNotificationList();
+    }
+
+    // ===== v10.4: Push notifications (site only) =====
+    function urlBase64ToUint8Array(base64String) {
+      const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+      const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+      const raw = atob(base64);
+      const arr = new Uint8Array(raw.length);
+      for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+      return arr;
+    }
+    function pushIsConfigured() {
+      return VAPID_PUBLIC_KEY && VAPID_PUBLIC_KEY !== 'PASTE_VAPID_PUBLIC_KEY_HERE'
+        && PUSH_WORKER_URL && PUSH_WORKER_URL !== 'https://your-worker.example.com';
+    }
+    function setPushNote(msg) {
+      const el = document.getElementById('push-note');
+      if (el) el.textContent = msg;
+    }
+    async function sendPushSubscription(sub) {
+      const titleIds = (userLibrary || []).filter(x => x.status === 'WATCHING').map(x => x.id);
+      await fetch(PUSH_WORKER_URL.replace(/\/$/, '') + '/subscribe', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscription: sub.toJSON(), titleIds })
+      });
+    }
+    async function enablePush() {
+      try {
+        if (!pushIsConfigured()) { setPushNote('Push is not set up yet — the push helper still needs to be deployed (see the push-worker folder). The bell above works without it.'); return; }
+        if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+          setPushNote('This browser does not support push notifications.'); return;
+        }
+        const perm = await Notification.requestPermission();
+        if (perm !== 'granted') { setPushNote('Notification permission was not granted, so push stays off. You can allow it later from your browser site settings.'); return; }
+        const reg = await navigator.serviceWorker.ready;
+        let sub = await reg.pushManager.getSubscription();
+        if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) });
+        await sendPushSubscription(sub);
+        notifSettings.push = true; saveNotifSettings();
+        setPushNote('Push is on for this device. You will get a notification when a new episode of a show you are watching airs.');
+      } catch (e) {
+        setPushNote('Something went wrong while turning push on. The in-app bell still works.');
+      }
+    }
+    async function syncPushSubscription() {
+      try {
+        if (!pushIsConfigured() || !notifSettings.push) return;
+        if (!('serviceWorker' in navigator) || !('Notification' in window)) return;
+        if (Notification.permission !== 'granted') return;
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.getSubscription();
+        if (sub) await sendPushSubscription(sub);
+      } catch (e) { /* the bell keeps working regardless */ }
+    }
     function renderDubRow() {
       const block = document.getElementById('m-dub-block');
       if (!block || !activeAnime) return;
@@ -1589,7 +1807,7 @@
           renderWatchlist();
         }
       } catch (e) { /* offline etc. — countdown keeps using saved data */ }
-      finally { airingRefreshInFlight = false; }
+      finally { airingRefreshInFlight = false; computeNotifications(); }
     }
 
     // ===== Features update: Random picker =====
@@ -2079,6 +2297,7 @@
       const filtered = userLibrary.filter(item => (currentWlTab === 'ALL' || item.status === currentWlTab));
       c.innerHTML = filtered.length ? '' : `<div style="color:var(--text-muted); padding:20px;">No anime in this category.</div>`;
       filtered.forEach(item => c.appendChild(createCard(item, { lang: true })));
+      computeNotifications();
     }
 
     window.addEventListener("firebase-initialized", () => {
@@ -2118,6 +2337,8 @@
     movePickerToZone();
     buildFilterYears();
     renderZoneAll();
+    computeNotifications();
+    syncPushSubscription();
     refreshAiringData();
 
     // Service worker (offline / PWA) — sw.js must sit next to index.html
